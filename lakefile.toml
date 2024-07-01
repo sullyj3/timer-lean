@@ -6,9 +6,18 @@ name = "Timer"
 
 [[lean_exe]]
 name = "timer"
-root = "Main"
+root = "TimerClient"
+
+[[lean_exe]]
+name = "timerd"
+root = "TimerDaemon"
 
 [[require]]
 name = "batteries"
 git = "https://github.com/leanprover-community/batteries"
-rev = "v4.9.0"
+rev = "v4.8.0"
+
+[[require]]
+name = "socket"
+git = "https://github.com/hargoniX/socket.lean"
+rev = "main"
