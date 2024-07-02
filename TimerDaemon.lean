@@ -1,4 +1,5 @@
 import Socket
+import Timer
 
 open System (FilePath)
 open Socket (SockAddr)
@@ -16,10 +17,11 @@ def handleClient
   let msg := String.fromUTF8! bytes
   IO.println s!"received message from client #{n}: {msg}"
     
-
 def main : IO Unit := do
 
-  let sockPath : FilePath := "/home/james/tmp/lean-timer-socket"
+  let sockPath ← Timer.getSockPath
+  IO.println s!"sockPath is {sockPath}"
+
   if (← sockPath.pathExists) then do
     IO.FS.removeFile sockPath
 

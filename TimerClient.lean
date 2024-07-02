@@ -1,5 +1,7 @@
 import Socket
 
+import Timer
+
 def withUnixSocket path (action : Socket → IO a) := do
   let addr := Socket.SockAddrUnix.unix path
   let sock : Socket ← Socket.mk .unix .stream
@@ -8,14 +10,13 @@ def withUnixSocket path (action : Socket → IO a) := do
   let result ← action sock
 
   sock.close
-
   return result
 
 open System (FilePath)
 
 def main : IO Unit := do
 
-  let sockPath : FilePath := "/home/james/tmp/lean-timer-socket"
+  let sockPath ← Timer.getSockPath
   if not (← sockPath.pathExists) then do
     IO.println "socket doesn't exist. Is the server running?"
     IO.Process.exit 1
