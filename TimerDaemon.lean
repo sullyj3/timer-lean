@@ -3,10 +3,21 @@ import Socket
 open System (FilePath)
 open Socket (SockAddr)
 
-def handleClient (client : Socket) (_clientAddr : SockAddr) : IO Unit := do
+/- def incCounter : IO.AtomicT Nat m Nat := do -/
+
+def handleClient 
+  (client : Socket)
+  (_clientAddr : SockAddr)
+  (counter : IO.Mutex Nat)
+  : IO Unit := do
+  let n ← counter.atomically do
+    let n ← get
+    set <| n + 1
+    return n
   let bytes ← client.recv (maxBytes := 1024)
   let msg := String.fromUTF8! bytes
-  IO.println s!"received message from client: {msg}"
+  IO.println s!"received message from client #{n}: {msg}"
+    
 
 def main : IO Unit := do
 
@@ -22,6 +33,9 @@ def main : IO Unit := do
 
   IO.println "listening..."
 
+  let counter ← IO.Mutex.new 1
+
   while true do
     let (client, clientAddr) ← sock.accept
-    let _tsk ← handleClient client clientAddr |>.asTask
+    let _tsk ← IO.asTask <|
+      handleClient client clientAddr counter
