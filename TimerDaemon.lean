@@ -1,6 +1,12 @@
 import Socket
 
 open System (FilePath)
+open Socket (SockAddr)
+
+def handleClient (client : Socket) (_clientAddr : SockAddr) : IO Unit := do
+  let bytes ← client.recv (maxBytes := 1024)
+  let msg := String.fromUTF8! bytes
+  IO.println s!"received message from client: {msg}"
 
 def main : IO Unit := do
 
@@ -12,23 +18,10 @@ def main : IO Unit := do
   let sock : Socket ← Socket.mk .unix .stream
 
   sock.bind addr
-  sock.listen 1
+  sock.listen 5
 
   IO.println "listening..."
-  let (client, clientAddr) ← sock.accept
-  let clientAddrStr := clientAddr.addr
-  IO.println s!"client connected: {clientAddrStr}"
-  if "" = clientAddrStr then do
-    IO.println "empty addrStr"
 
-  let bytes ← client.recv (maxBytes := 1024)
-  IO.print "received message from client: "
-  let msg := String.fromUTF8! bytes
-  IO.println msg
-
-  sock.close
-
-  IO.println "end"
-
-
-
+  while true do
+    let (client, clientAddr) ← sock.accept
+    let _tsk ← handleClient client clientAddr |>.asTask

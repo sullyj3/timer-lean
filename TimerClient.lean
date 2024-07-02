@@ -20,11 +20,12 @@ def main : IO Unit := do
     IO.println "socket doesn't exist. Is the server running?"
     IO.Process.exit 1
 
-  withUnixSocket sockPath λ sock ↦ do
-    IO.println "connected to server"
-    let msg := "Hello, server!"
-    let _nBytes ← sock.send msg.toUTF8
-    IO.println "sent message. Exiting"
+  for _ in [1:100] do
+    withUnixSocket sockPath λ sock ↦ do
+      IO.println "connected to server"
+      let msg := "Hello, server!"
+      let _nBytes ← sock.send msg.toUTF8
+      IO.println "sent message. Exiting"
 
 
 
