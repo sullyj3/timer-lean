@@ -15,8 +15,16 @@ def main : IO Unit := do
   sock.listen 1
 
   IO.println "listening..."
-  let (client, _sa) ← sock.accept
-  IO.println "client connected"
+  let (client, clientAddr) ← sock.accept
+  let clientAddrStr := clientAddr.addr
+  IO.println s!"client connected: {clientAddrStr}"
+  if "" = clientAddrStr then do
+    IO.println "empty addrStr"
+
+  let bytes ← client.recv (maxBytes := 1024)
+  IO.print "received message from client: "
+  let msg := String.fromUTF8! bytes
+  IO.println msg
 
   sock.close
 
