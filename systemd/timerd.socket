@@ -1,0 +1,9 @@
+[Unit]
+Description=Countdown timer daemon socket
+
+[Socket]
+ListenStream=%t/timerd.sock
+SocketMode=0666
+
+[Install]
+WantedBy=sockets.target
