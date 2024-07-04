@@ -17,8 +17,7 @@ def handleClient
   let msg := String.fromUTF8! bytes
   IO.eprintln s!"received message from client #{n}: {msg}"
 
-    
-def main : IO Unit := do
+def timerDaemon : IO Unit := do
   IO.eprintln "timerd started"
 
   let sock ← Timer.getSocket .systemd
@@ -31,3 +30,5 @@ def main : IO Unit := do
     let (client, clientAddr) ← sock.accept
     let _tsk ← IO.asTask <|
       handleClient client clientAddr counter
+
+def main := timerDaemon

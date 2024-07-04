@@ -38,4 +38,20 @@ def getSocket : SockSource → IO Socket
     let systemdSocketActivationFd : UInt32 := 3
     Socket.fromFd systemdSocketActivationFd true
 
+def runCmdSimple 
+  (cmd : String) (args : Array String := #[]) : IO UInt32 := do
+
+  let child ← IO.Process.spawn
+    { cmd := cmd, 
+      args := args,
+
+      stdin := .null, 
+      stdout := .null,
+      stderr := .null,
+    }
+  child.wait
+
+def notify (message : String) : IO UInt32 :=
+  runCmdSimple "notify-send" #[message]
+
 end Timer
