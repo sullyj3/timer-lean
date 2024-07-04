@@ -7,11 +7,7 @@ open Socket (SockAddr)
 def inc [MonadState Nat m] : m Nat :=
   modifyGet λ n ↦ (n, n + 1)
 
-def handleClient 
-  (client : Socket)
-  (_clientAddr : SockAddr)
-  (counter : IO.Mutex Nat)
-  : IO Unit := do
+def handleClient (client : Socket) (counter : IO.Mutex Nat) : IO Unit := do
   let n ← counter.atomically inc
   let bytes ← client.recv (maxBytes := 1024)
   let msg := String.fromUTF8! bytes
@@ -30,8 +26,8 @@ def timerDaemon : IO Unit := do
   let counter ← IO.Mutex.new 1
 
   while true do
-    let (client, clientAddr) ← sock.accept
+    let (client, _clientAddr) ← sock.accept
     let _tsk ← IO.asTask <|
-      handleClient client clientAddr counter
+      handleClient client counter
 
 def main := timerDaemon
