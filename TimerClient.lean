@@ -14,7 +14,9 @@ def withUnixSocket path (action : Socket → IO a) := do
 
 open System (FilePath)
 
-def main : IO Unit := do
+def main (args : List String) : IO Unit := do
+
+  let n := 5000 -- ms
 
   let sockPath ← Timer.getSockPath
   if not (← sockPath.pathExists) then do
@@ -23,9 +25,6 @@ def main : IO Unit := do
 
   withUnixSocket sockPath λ sock ↦ do
     IO.println "connected to server"
-    let msg := "Hello, server!"
+    let msg := reprStr n
     let _nBytes ← sock.send msg.toUTF8
     IO.println "sent message. Exiting"
-
-
-

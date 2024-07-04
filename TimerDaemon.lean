@@ -9,17 +9,26 @@ def inc [MonadState Nat m] : m Nat :=
   modifyGet λ n ↦ (n, n + 1)
 
 def handleClient (client : Socket) (counter : IO.Mutex Nat) : IO Unit := do
-  let n ← counter.atomically inc
+  _ ← counter.atomically inc
   let bytes ← client.recv (maxBytes := 1024)
   let msg := String.fromUTF8! bytes
 
-  let logMsg := s!"received message from client #{n}: {msg}"
+
+  let logMsg ← if let some n := msg.trim.toNat? then do
+    IO.sleep n.toUInt32
+    IO.eprintln "Time's up!"
+    _ ← Timer.notify "Time's up!"
+    pure s!"received message from client #{n}: {msg}"
+  else
+    pure "parse failed"
+
   IO.eprintln logMsg
   _ ← Timer.notify logMsg
 
 partial def forever (act : IO α) : IO β := do
   _ ← act
   forever act
+
 
 def parseMode (args : List String) : Option DaemonMode :=
   match args with
@@ -43,3 +52,4 @@ def timerDaemon (args : List String) : IO α := do
 
 def main (args : List String) : IO UInt32 := do
   timerDaemon args
+  return 0
