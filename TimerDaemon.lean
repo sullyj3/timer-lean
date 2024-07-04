@@ -15,14 +15,15 @@ def handleClient
   let n ← counter.atomically inc
   let bytes ← client.recv (maxBytes := 1024)
   let msg := String.fromUTF8! bytes
-  IO.println s!"received message from client #{n}: {msg}"
+  IO.eprintln s!"received message from client #{n}: {msg}"
 
     
 def main : IO Unit := do
+  IO.eprintln "timerd started"
 
   let sock ← Timer.getSocket .systemd
 
-  IO.println "listening..."
+  IO.eprintln "listening..."
 
   let counter ← IO.Mutex.new 1
 
