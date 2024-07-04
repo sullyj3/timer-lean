@@ -20,7 +20,7 @@ def handleClient
     
 def main : IO Unit := do
 
-  let sock ← Timer.getSocket .create
+  let sock ← Timer.getSocket .systemd
 
   IO.println "listening..."
 

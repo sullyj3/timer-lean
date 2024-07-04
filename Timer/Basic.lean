@@ -34,6 +34,8 @@ def getSocket : SockSource → IO Socket
     sock.listen 5
     return sock
 
-  | .systemd => sorry
+  | .systemd =>
+    let systemdSocketActivationFd : UInt32 := 3
+    Socket.fromFd systemdSocketActivationFd true
 
 end Timer
