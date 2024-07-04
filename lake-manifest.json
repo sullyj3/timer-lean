@@ -28,7 +28,7 @@
    "inputRev": "main",
    "inherited": true,
    "configFile": "lakefile.lean"},
-  {"url": "https://github.com/hargoniX/socket.lean",
+  {"url": "/home/james/dev/socket.lean",
    "type": "git",
    "subDir": null,
    "rev": "d33b8cccc8c9976a9cd9ba830ac72f48afbf14c2",
