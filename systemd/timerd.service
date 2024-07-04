@@ -4,7 +4,7 @@ Requires=timerd.socket
 
 [Service]
 ; TODO change path
-ExecStart=/home/james/dev/timer-lean/.lake/build/bin/timerd
+ExecStart=/home/james/dev/timer-lean/.lake/build/bin/timerd --systemd
 
 [Install]
 WantedBy=default.target

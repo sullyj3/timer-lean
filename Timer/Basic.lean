@@ -1,7 +1,7 @@
 import Socket
 open System (FilePath)
 
-private def Option.getOrFail (msg : String) : Option α → IO α
+def Option.getOrFail (msg : String) : Option α → IO α
 | some x => return x
 | none => do
   IO.eprintln msg
@@ -13,14 +13,14 @@ private def runtimeDir : IO FilePath := do
 
 namespace Timer
 
-def getSockPath : IO FilePath := 
+def getSockPath : IO FilePath :=
   runtimeDir <&> (· / "timerd.sock")
 
-inductive SockSource 
-  | create | systemd
+inductive DaemonMode
+  | standalone | systemd
 
-def getSocket : SockSource → IO Socket
-  | .create => do
+def getSocket : DaemonMode → IO Socket
+  | .standalone => do
     let sockPath ← getSockPath
     IO.println s!"sockPath is {sockPath}"
 
@@ -38,14 +38,14 @@ def getSocket : SockSource → IO Socket
     let systemdSocketActivationFd : UInt32 := 3
     Socket.fromFd systemdSocketActivationFd true
 
-def runCmdSimple 
+def runCmdSimple
   (cmd : String) (args : Array String := #[]) : IO UInt32 := do
 
   let child ← IO.Process.spawn
-    { cmd := cmd, 
+    { cmd := cmd,
       args := args,
 
-      stdin := .null, 
+      stdin := .null,
       stdout := .null,
       stderr := .null,
     }
