@@ -16,20 +16,11 @@ def handleClient
   let bytes ← client.recv (maxBytes := 1024)
   let msg := String.fromUTF8! bytes
   IO.println s!"received message from client #{n}: {msg}"
+
     
 def main : IO Unit := do
 
-  let sockPath ← Timer.getSockPath
-  IO.println s!"sockPath is {sockPath}"
-
-  if (← sockPath.pathExists) then do
-    IO.FS.removeFile sockPath
-
-  let addr := Socket.SockAddrUnix.unix sockPath
-  let sock : Socket ← Socket.mk .unix .stream
-
-  sock.bind addr
-  sock.listen 5
+  let sock ← Timer.getSocket .create
 
   IO.println "listening..."
 

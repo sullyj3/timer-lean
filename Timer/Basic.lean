@@ -1,3 +1,4 @@
+import Socket
 open System (FilePath)
 
 def Option.getOrFail (msg : String) : Option α → IO α
@@ -14,5 +15,25 @@ namespace Timer
 
 def getSockPath : IO FilePath := 
   runtimeDir <&> (· / "timerd.sock")
+
+inductive SockSource 
+  | create | systemd
+
+def getSocket : SockSource → IO Socket
+  | .create => do
+    let sockPath ← getSockPath
+    IO.println s!"sockPath is {sockPath}"
+
+    if (← sockPath.pathExists) then do
+      IO.FS.removeFile sockPath
+
+    let addr := Socket.SockAddrUnix.unix sockPath
+    let sock : Socket ← Socket.mk .unix .stream
+
+    sock.bind addr
+    sock.listen 5
+    return sock
+
+  | .systemd => sorry
 
 end Timer
