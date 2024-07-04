@@ -16,7 +16,11 @@ def handleClient (client : Socket) (counter : IO.Mutex Nat) : IO Unit := do
   IO.eprintln logMsg
   _ ← Timer.notify logMsg
 
-def timerDaemon : IO Unit := do
+partial def forever (act : IO α) : IO β := do
+  _ ← act
+  forever act
+
+def timerDaemon (args : List string) : IO α := do
   IO.eprintln "timerd started"
 
   let sock ← Timer.getSocket .systemd
@@ -25,9 +29,10 @@ def timerDaemon : IO Unit := do
 
   let counter ← IO.Mutex.new 1
 
-  while true do
+  forever do
     let (client, _clientAddr) ← sock.accept
     let _tsk ← IO.asTask <|
       handleClient client counter
 
-def main := timerDaemon
+def main (args : List String) : IO UInt32 := do
+  timerDaemon args
