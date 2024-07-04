@@ -15,7 +15,10 @@ def handleClient
   let n ← counter.atomically inc
   let bytes ← client.recv (maxBytes := 1024)
   let msg := String.fromUTF8! bytes
-  IO.eprintln s!"received message from client #{n}: {msg}"
+
+  let logMsg := s!"received message from client #{n}: {msg}" 
+  IO.eprintln logMsg
+  _ ← Timer.notify logMsg
 
 def timerDaemon : IO Unit := do
   IO.eprintln "timerd started"
