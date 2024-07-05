@@ -14,9 +14,16 @@ def withUnixSocket path (action : Socket → IO a) := do
 
 open System (FilePath)
 
+def parseArgs : List String → Option Nat
+  | [] => none
+  | [strN] => strN.toNat?
+  | _ => none
+
 def main (args : List String) : IO Unit := do
 
-  let n := 5000 -- ms
+  let nSeconds : Nat ← (parseArgs args).getDM do
+    println! "bad args"
+    IO.Process.exit 1
 
   let sockPath ← Timer.getSockPath
   if not (← sockPath.pathExists) then do
@@ -25,6 +32,6 @@ def main (args : List String) : IO Unit := do
 
   withUnixSocket sockPath λ sock ↦ do
     IO.println "connected to server"
-    let msg := reprStr n
+    let msg := reprStr (nSeconds * 1000)
     let _nBytes ← sock.send msg.toUTF8
     IO.println "sent message. Exiting"

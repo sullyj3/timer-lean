@@ -8,27 +8,29 @@ open Timer (DaemonMode)
 def inc [MonadState Nat m] : m Nat :=
   modifyGet λ n ↦ (n, n + 1)
 
+def playTimerSound : IO Unit := do
+  _ ← Timer.runCmdSimple
+    "mpv" #["/home/james/.local/share/timer/simple-notification-152054.mp3"]
+
 def handleClient (client : Socket) (counter : IO.Mutex Nat) : IO Unit := do
   _ ← counter.atomically inc
   let bytes ← client.recv (maxBytes := 1024)
   let msg := String.fromUTF8! bytes
 
+  if let some n := msg.trim.toNat? then do
+    let msg := s!"Starting timer for {n}ms"
+    IO.eprintln msg
+    _ ← Timer.notify msg
 
-  let logMsg ← if let some n := msg.trim.toNat? then do
     IO.sleep n.toUInt32
-    IO.eprintln "Time's up!"
     _ ← Timer.notify "Time's up!"
-    pure s!"received message from client #{n}: {msg}"
+    playTimerSound
   else
-    pure "parse failed"
+    let msg := "failed to parse client message as a Nat"
+    IO.eprintln msg
+    _ ← Timer.notify msg
 
-  IO.eprintln logMsg
-  _ ← Timer.notify logMsg
-
-partial def forever (act : IO α) : IO β := do
-  _ ← act
-  forever act
-
+partial def forever (act : IO α) : IO β := act *> forever act
 
 def parseMode (args : List String) : Option DaemonMode :=
   match args with
