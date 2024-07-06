@@ -12,7 +12,13 @@ def playTimerSound : IO Unit := do
   _ ← Timer.runCmdSimple
     "mpv" #["/home/james/.local/share/timer/simple-notification-152054.mp3"]
 
-def handleClient (client : Socket) (counter : IO.Mutex Nat) : IO Unit := do
+def handleClient
+  (client : Socket)
+  (counter : IO.Mutex Nat)
+  -- (timers : IO.Mutex (Array Nat))
+  : IO Unit := do
+  let now ← IO.monoMsNow
+
   _ ← counter.atomically inc
   let bytes ← client.recv (maxBytes := 1024)
   let msg := String.fromUTF8! bytes
@@ -22,8 +28,11 @@ def handleClient (client : Socket) (counter : IO.Mutex Nat) : IO Unit := do
     IO.eprintln msg
     _ ← Timer.notify msg
 
+    let timerDue := now + n
     IO.sleep n.toUInt32
-    _ ← Timer.notify "Time's up!"
+    let now2 ← IO.monoMsNow
+    let diff := Int.subNatNat now2 timerDue
+    _ ← Timer.notify s!"Time's up! (late by {diff}ms)"
     playTimerSound
   else
     let msg := "failed to parse client message as a Nat"
