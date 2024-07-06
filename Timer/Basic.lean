@@ -1,11 +1,11 @@
 import Socket
 open System (FilePath)
 
-def Option.getOrFail (msg : String) : Option α → IO α
-| some x => return x
-| none => do
-  IO.eprintln msg
-  IO.Process.exit 1
+def Option.getOrFail (msg : String) (x? : Option α) : IO α := do
+  let some x := x? | do
+    IO.eprintln msg
+    IO.Process.exit 1
+  return x
 
 private def runtimeDir : IO FilePath := do
   (← IO.getEnv "XDG_RUNTIME_DIR")

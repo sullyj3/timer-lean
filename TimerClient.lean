@@ -21,7 +21,7 @@ def parseArgs : List String → Option Nat
 
 def main (args : List String) : IO Unit := do
 
-  let nSeconds : Nat ← (parseArgs args).getDM do
+  let some (nSeconds : Nat) := parseArgs args | do
     println! "bad args"
     IO.Process.exit 1
 

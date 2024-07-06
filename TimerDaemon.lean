@@ -41,21 +41,21 @@ def handleClient
   let bytes ← client.recv (maxBytes := 1024)
   let msg := String.fromUTF8! bytes
 
-  if let some n := msg.trim.toNat? then do
-    let msg := s!"Starting timer for {n}ms"
-    IO.eprintln msg
-    _ ← Timer.notify msg
-
-    let timerDue := now + n
-    waitTil timerDue
-    let now2 ← IO.monoMsNow
-    let diff := Int.subNatNat now2 timerDue
-    _ ← Timer.notify s!"Time's up! (late by {diff}ms)"
-    playTimerSound
-  else
+  let some n := msg.trim.toNat? | do
     let msg := "failed to parse client message as a Nat"
     IO.eprintln msg
     _ ← Timer.notify msg
+
+  let msg := s!"Starting timer for {n}ms"
+  IO.eprintln msg
+  _ ← Timer.notify msg
+
+  let timerDue := now + n
+  waitTil timerDue
+  let now2 ← IO.monoMsNow
+  let diff := Int.subNatNat now2 timerDue
+  _ ← Timer.notify s!"Time's up! (late by {diff}ms)"
+  playTimerSound
 
 partial def forever (act : IO α) : IO β := act *> forever act
 
