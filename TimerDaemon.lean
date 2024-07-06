@@ -12,6 +12,24 @@ def playTimerSound : IO Unit := do
   _ ← Timer.runCmdSimple
     "mpv" #["/home/james/.local/share/timer/simple-notification-152054.mp3"]
 
+
+partial def busyWaitTil (due : Nat) : IO Unit := do
+  while (← IO.monoMsNow) < due do
+    pure ()
+
+-- IO.sleep isn't guaranteed to be on time, I find it's usually about 10ms late
+-- this strategy aims to be exactly on time (to the millisecond), while
+-- avoiding a long busy wait which consumes too much cpu.
+partial def waitTil (due : Nat) : IO Unit := do
+  let remaining_ms := due - (← IO.monoMsNow)
+  -- We sleep while there's enough time left that we can afford to be inaccurate
+  if remaining_ms > 50 then do
+    IO.sleep (remaining_ms/2).toUInt32
+    waitTil due
+  -- then busy wait when we need to be on time
+  else do
+    busyWaitTil due
+
 def handleClient
   (client : Socket)
   (counter : IO.Mutex Nat)
@@ -29,7 +47,7 @@ def handleClient
     _ ← Timer.notify msg
 
     let timerDue := now + n
-    IO.sleep n.toUInt32
+    waitTil timerDue
     let now2 ← IO.monoMsNow
     let diff := Int.subNatNat now2 timerDue
     _ ← Timer.notify s!"Time's up! (late by {diff}ms)"
