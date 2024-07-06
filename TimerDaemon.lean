@@ -9,8 +9,10 @@ def inc [MonadState Nat m] : m Nat :=
   modifyGet λ n ↦ (n, n + 1)
 
 def playTimerSound : IO Unit := do
-  _ ← Timer.runCmdSimple
-    "mpv" #["/home/james/.local/share/timer/simple-notification-152054.mp3"]
+  let some dir ← Timer.dataDir | do
+    IO.eprintln "Warning: failed to locate XDG_DATA_HOME. Audio will not work."
+  let soundPath := dir / "simple-notification-152054.mp3"
+  _ ← Timer.runCmdSimple "mpv" #[soundPath.toString]
 
 
 partial def busyWaitTil (due : Nat) : IO Unit := do
