@@ -46,7 +46,7 @@ def getSocket : DaemonMode → IO Socket
 
   | .systemd =>
     let systemdSocketActivationFd : UInt32 := 3
-    Socket.fromFd systemdSocketActivationFd (isOpen := true)
+    Socket.fromFd systemdSocketActivationFd
 
 def runCmdSimple
   (cmd : String) (args : Array String := #[]) : IO UInt32 := do
