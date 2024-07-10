@@ -19,6 +19,5 @@ rev = "v4.8.0"
 
 [[require]]
 name = "socket"
-# git = "https://github.com/hargoniX/socket.lean"
-git = "/home/james/dev/socket.lean"
+git = "https://github.com/hargoniX/socket.lean"
 rev = "main"
