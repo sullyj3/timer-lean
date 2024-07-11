@@ -5,13 +5,46 @@ open System (FilePath)
 open Socket (SockAddr)
 open Timer (DaemonMode)
 
-def inc [MonadState Nat m] : m Nat :=
-  modifyGet λ n ↦ (n, n + 1)
+def TimerId := Nat
+  deriving BEq
+
+structure Timer where
+  id : TimerId
+  due : Nat
+
+structure TimerdState where
+  nextTimerId : IO.Mutex Nat
+  timers : IO.Mutex (Array Timer) -- TODO switch to hashmap or something
+
+namespace TimerdState
+
+def initial : IO TimerdState := do
+  return {
+    nextTimerId := (← IO.Mutex.new 1),
+    timers := (← IO.Mutex.new #[])
+  }
+
+def addTimer (state : TimerdState) (due : Nat) : BaseIO TimerId := do
+  let id : TimerId ← state.nextTimerId.atomically (getModify Nat.succ)
+  let timer : Timer := ⟨id, due⟩
+  state.timers.atomically <| modify (·.push timer)
+  return id
+
+-- No-op if timer with TimerId `id` doesn't exist,
+def removeTimer (state : TimerdState) (id : TimerId) : BaseIO Unit := do
+  state.timers.atomically <| modify λ timers ↦
+    match timers.findIdx? (λ timer ↦ timer.id == id) with
+    | some idx => timers.eraseIdx idx
+    | none => timers
+
+end TimerdState
 
 def playTimerSound : IO Unit := do
   let some dir ← Timer.dataDir | do
     IO.eprintln "Warning: failed to locate XDG_DATA_HOME. Audio will not work."
   let soundPath := dir / "simple-notification-152054.mp3"
+
+  -- todo choose most appropriate media player, possibly record a dependency for package
   _ ← Timer.runCmdSimple "mpv" #[soundPath.toString]
 
 
@@ -34,12 +67,11 @@ partial def waitTil (due : Nat) : IO Unit := do
 
 def handleClient
   (client : Socket)
-  (counter : IO.Mutex Nat)
-  -- (timers : IO.Mutex (Array Nat))
+  (state : TimerdState)
   : IO Unit := do
   let now ← IO.monoMsNow
 
-  _ ← counter.atomically inc
+  -- receive and parse message
   let bytes ← client.recv (maxBytes := 1024)
   let msg := String.fromUTF8! bytes
 
@@ -48,16 +80,26 @@ def handleClient
     IO.eprintln msg
     _ ← Timer.notify msg
 
+  -- run timer
   let msg := s!"Starting timer for {n}ms"
+
+
   IO.eprintln msg
   _ ← Timer.notify msg
 
   let timerDue := now + n
+
+  let addTimerTask : Task TimerId ← BaseIO.asTask <|
+    state.addTimer timerDue
+
   waitTil timerDue
   let now2 ← IO.monoMsNow
   let diff := Int.subNatNat now2 timerDue
   _ ← Timer.notify s!"Time's up! (late by {diff}ms)"
   playTimerSound
+
+  let timerId := addTimerTask.get
+  state.removeTimer timerId
 
 partial def forever (act : IO α) : IO β := act *> forever act
 
@@ -74,12 +116,12 @@ def timerDaemon (args : List String) : IO α := do
   IO.eprintln "timerd started"
   IO.eprintln "listening..."
 
-  let counter ← IO.Mutex.new 1
+  let state ← TimerdState.initial
 
   forever do
     let (client, _clientAddr) ← sock.accept
     let _tsk ← IO.asTask <|
-      handleClient client counter
+      handleClient client state
 
 def main (args : List String) : IO UInt32 := do
   timerDaemon args
