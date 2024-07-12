@@ -1,8 +1,5 @@
-import Socket
 import Timer
 
-open System (FilePath)
-open Socket (SockAddr)
 open Timer (DaemonMode Command)
 
 def TimerId := Nat
