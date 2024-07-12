@@ -2,6 +2,8 @@ import Socket
 
 import Timer
 
+open Timer (Command)
+
 def withUnixSocket path (action : Socket → IO a) := do
   let addr := Socket.SockAddrUnix.unix path
   let sock : Socket ← Socket.mk .unix .stream
@@ -14,14 +16,16 @@ def withUnixSocket path (action : Socket → IO a) := do
 
 open System (FilePath)
 
-def parseArgs : List String → Option Nat
+def parseArgs : List String → Option Command
   | [] => none
-  | [strN] => strN.toNat?
+  | [strN] => do
+    let nSeconds ← strN.toNat?
+    return .addTimer <| nSeconds * 1000
   | _ => none
 
 def main (args : List String) : IO Unit := do
 
-  let some (nSeconds : Nat) := parseArgs args | do
+  let some cmd := parseArgs args | do
     println! "bad args"
     IO.Process.exit 1
 
@@ -32,6 +36,6 @@ def main (args : List String) : IO Unit := do
 
   withUnixSocket sockPath λ sock ↦ do
     IO.println "connected to server"
-    let msg := reprStr (nSeconds * 1000)
+    let msg := cmd.toString
     let _nBytes ← sock.send msg.toUTF8
     IO.println "sent message. Exiting"

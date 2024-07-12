@@ -64,4 +64,27 @@ def runCmdSimple
 def notify (message : String) : IO UInt32 :=
   runCmdSimple "notify-send" #[message]
 
+-- commands sent from client to server
+inductive Command
+  | addTimer (durationMs : Nat)
+  -- | list -- TODO
+  deriving Repr
+
+namespace Command
+
+def parse (str : String) : Option Command :=
+  match str.split Char.isWhitespace with
+  | ["add", nStr] => do
+    let n ← nStr.toNat?
+    return .addTimer n
+  -- | ["list"] => sorry -- TODO
+  | _ => none
+
+
+def toString : Command → String
+  | addTimer ms => s!"add {ms}"
+  -- | list => sorry -- TODO
+
+end Command
+
 end Timer

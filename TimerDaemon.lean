@@ -3,7 +3,7 @@ import Timer
 
 open System (FilePath)
 open Socket (SockAddr)
-open Timer (DaemonMode)
+open Timer (DaemonMode Command)
 
 def TimerId := Nat
   deriving BEq
@@ -73,33 +73,34 @@ def handleClient
 
   -- receive and parse message
   let bytes ← client.recv (maxBytes := 1024)
-  let msg := String.fromUTF8! bytes
+  let clientMsg := String.fromUTF8! bytes
 
-  let some n := msg.trim.toNat? | do
-    let msg := "failed to parse client message as a Nat"
+  let some (cmd : Command) := Command.parse clientMsg | do
+    let errMsg := s!"failed to parse client message: invalid command \"{clientMsg}\""
+    IO.eprintln errMsg
+    _ ← Timer.notify errMsg
+
+  match cmd with
+  | .addTimer durationMs => do
+    -- run timer
+    let msg := s!"Starting timer for {durationMs}ms"
+
     IO.eprintln msg
     _ ← Timer.notify msg
 
-  -- run timer
-  let msg := s!"Starting timer for {n}ms"
+    let timerDue := now + durationMs
 
+    let addTimerTask : Task TimerId ← BaseIO.asTask <|
+      state.addTimer timerDue
 
-  IO.eprintln msg
-  _ ← Timer.notify msg
+    waitTil timerDue
+    let now2 ← IO.monoMsNow
+    let diff := Int.subNatNat now2 timerDue
+    _ ← Timer.notify s!"Time's up! (late by {diff}ms)"
+    playTimerSound
 
-  let timerDue := now + n
-
-  let addTimerTask : Task TimerId ← BaseIO.asTask <|
-    state.addTimer timerDue
-
-  waitTil timerDue
-  let now2 ← IO.monoMsNow
-  let diff := Int.subNatNat now2 timerDue
-  _ ← Timer.notify s!"Time's up! (late by {diff}ms)"
-  playTimerSound
-
-  let timerId := addTimerTask.get
-  state.removeTimer timerId
+    let timerId := addTimerTask.get
+    state.removeTimer timerId
 
 partial def forever (act : IO α) : IO β := act *> forever act
 
