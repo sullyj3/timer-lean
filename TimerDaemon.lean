@@ -65,11 +65,32 @@ partial def waitTil (due : Nat) : IO Unit := do
   else do
     busyWaitTil due
 
+def addTimer (state : TimerdState) (startTime : Nat) (durationMs : Nat) : IO Unit := do
+  -- run timer
+  let msg := s!"Starting timer for {durationMs}ms"
+
+  IO.eprintln msg
+  _ ← Timer.notify msg
+
+  let timerDue := startTime + durationMs
+
+  let addTimerTask : Task TimerId ← BaseIO.asTask <|
+    state.addTimer timerDue
+
+  waitTil timerDue
+  let now2 ← IO.monoMsNow
+  let diff := Int.subNatNat now2 timerDue
+  _ ← Timer.notify s!"Time's up! (late by {diff}ms)"
+  playTimerSound
+
+  let timerId := addTimerTask.get
+  state.removeTimer timerId
+
 def handleClient
   (client : Socket)
   (state : TimerdState)
   : IO Unit := do
-  let now ← IO.monoMsNow
+  let startTime ← IO.monoMsNow
 
   -- receive and parse message
   let bytes ← client.recv (maxBytes := 1024)
@@ -81,26 +102,7 @@ def handleClient
     _ ← Timer.notify errMsg
 
   match cmd with
-  | .addTimer durationMs => do
-    -- run timer
-    let msg := s!"Starting timer for {durationMs}ms"
-
-    IO.eprintln msg
-    _ ← Timer.notify msg
-
-    let timerDue := now + durationMs
-
-    let addTimerTask : Task TimerId ← BaseIO.asTask <|
-      state.addTimer timerDue
-
-    waitTil timerDue
-    let now2 ← IO.monoMsNow
-    let diff := Int.subNatNat now2 timerDue
-    _ ← Timer.notify s!"Time's up! (late by {diff}ms)"
-    playTimerSound
-
-    let timerId := addTimerTask.get
-    state.removeTimer timerId
+  | .addTimer durationMs => addTimer state startTime durationMs
 
 partial def forever (act : IO α) : IO β := act *> forever act
 
