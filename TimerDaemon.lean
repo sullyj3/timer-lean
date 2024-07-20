@@ -1,13 +1,7 @@
 import Timer
 
+open Lean (Json toJson)
 open Timer (DaemonMode Command)
-
-def TimerId := Nat
-  deriving BEq
-
-structure Timer where
-  id : TimerId
-  due : Nat
 
 structure TimerdState where
   nextTimerId : IO.Mutex Nat
@@ -69,6 +63,9 @@ def addTimer (state : TimerdState) (startTime : Nat) (durationMs : Nat) : IO Uni
   IO.eprintln msg
   _ ← Timer.notify msg
 
+  -- TODO: problem with this approach - time spent suspended is not counted.
+  -- eg if I set a 1 minute timer, then suspend at 30s, the timer will
+  -- go off 30s after wake.
   let timerDue := startTime + durationMs
 
   let addTimerTask : Task TimerId ← BaseIO.asTask <|
@@ -82,6 +79,14 @@ def addTimer (state : TimerdState) (startTime : Nat) (durationMs : Nat) : IO Uni
 
   let timerId := addTimerTask.get
   state.removeTimer timerId
+
+def serializeTimers (timers : Array Timer) : ByteArray :=
+  String.toUTF8 <| toString <| toJson timers
+
+def list (state : TimerdState) (client : Socket) : IO Unit := do
+  let timers ← state.timers.atomically get
+  _ ← client.send <| serializeTimers timers
+
 
 def handleClient
   (client : Socket)
@@ -100,6 +105,7 @@ def handleClient
 
   match cmd with
   | .addTimer durationMs => addTimer state startTime durationMs
+  | .list => list state client
 
 partial def forever (act : IO α) : IO β := act *> forever act
 

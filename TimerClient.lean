@@ -1,3 +1,4 @@
+import Lean
 import Socket
 
 import Timer
@@ -18,10 +19,41 @@ open System (FilePath)
 
 def parseArgs : List String → Option Command
   | [] => none
+  | ["list"] => some .list
   | [strN] => do
     let nSeconds ← strN.toNat?
     return .addTimer <| nSeconds * 1000
   | _ => none
+
+def unlines := String.intercalate "¬"
+
+def showTimers (timers : List Timer) : String :=
+  if timers.isEmpty then
+    "No running timers."
+  else
+    unlines <| List.map (toString ∘ repr) <| timers
+
+open Lean (fromJson?) in
+def handleCmd (sock : Socket) (cmd : Command) : IO Unit := do
+  let msg := cmd.toString
+  let _nBytes ← sock.send msg.toUTF8
+
+  match cmd with
+  | Command.addTimer _ => do
+    IO.println "sent message. Exiting"
+  | Command.list => do
+    let resp ← sock.recv 10240
+
+    let timers? : Except String (List Timer) := do
+      let json ← Lean.Json.parse <| String.fromUTF8! resp
+      fromJson? json
+
+    let .ok timers := timers? | do
+      println! "failed to parse message from server. exiting"
+
+    let now ← IO.monoMsNow
+    IO.println s!"now: {now}"
+    IO.println <| showTimers timers
 
 def main (args : List String) : IO Unit := do
 
@@ -36,6 +68,4 @@ def main (args : List String) : IO Unit := do
 
   withUnixSocket sockPath λ sock ↦ do
     IO.println "connected to server"
-    let msg := cmd.toString
-    let _nBytes ← sock.send msg.toUTF8
-    IO.println "sent message. Exiting"
+    handleCmd sock cmd

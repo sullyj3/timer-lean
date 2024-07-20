@@ -1,4 +1,7 @@
+import Lean
 import Socket
+
+open Lean (ToJson FromJson toJson fromJson?)
 open System (FilePath)
 
 def Option.getOrFail (msg : String) (x? : Option α) : IO α := do
@@ -18,6 +21,20 @@ private def xdgDataHome : IO (Option FilePath) := do
   let home?           ← FilePath.mk <$$> IO.getEnv "HOME"
   let dataHomeFallback? := home? <&> (· / ".local/share")
   return xdgDataHomeEnv? <|> dataHomeFallback?
+
+def TimerId := Nat
+  deriving BEq, Repr, ToJson, FromJson
+
+namespace TimerId
+
+def fromNat (n : Nat) : TimerId := n
+
+end TimerId
+
+structure Timer where
+  id : TimerId
+  due : Nat
+  deriving Repr, ToJson, FromJson
 
 namespace Timer
 
@@ -67,7 +84,7 @@ def notify (message : String) : IO UInt32 :=
 -- commands sent from client to server
 inductive Command
   | addTimer (durationMs : Nat)
-  -- | list -- TODO
+  | list
   deriving Repr
 
 namespace Command
@@ -77,13 +94,12 @@ def parse (str : String) : Option Command :=
   | ["add", nStr] => do
     let n ← nStr.toNat?
     return .addTimer n
-  -- | ["list"] => sorry -- TODO
+  | ["list"] => some .list
   | _ => none
-
 
 def toString : Command → String
   | addTimer ms => s!"add {ms}"
-  -- | list => sorry -- TODO
+  | list => "list"
 
 end Command
 
