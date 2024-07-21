@@ -27,11 +27,18 @@ def parseArgs : List String → Option Command
 
 def unlines := String.intercalate "¬"
 
-def showTimers (timers : List Timer) : String :=
+def showTimer (now : Nat) : Timer → String
+  | {id, due} =>
+    let msRemaining := due - now
+    let sRemaining := msRemaining/1000
+
+    s!"{repr id} | {due} ({sRemaining}s remaining)"
+
+def showTimers (timers : List Timer) (now : Nat) : String :=
   if timers.isEmpty then
     "No running timers."
   else
-    unlines <| List.map (toString ∘ repr) <| timers
+    unlines <| List.map (showTimer now) <| timers
 
 open Lean (fromJson?) in
 def handleCmd (sock : Socket) (cmd : Command) : IO Unit := do
@@ -53,7 +60,7 @@ def handleCmd (sock : Socket) (cmd : Command) : IO Unit := do
 
     let now ← IO.monoMsNow
     IO.println s!"now: {now}"
-    IO.println <| showTimers timers
+    IO.println <| showTimers timers now
 
 def main (args : List String) : IO Unit := do
 
@@ -66,6 +73,4 @@ def main (args : List String) : IO Unit := do
     IO.println "socket doesn't exist. Is the server running?"
     IO.Process.exit 1
 
-  withUnixSocket sockPath λ sock ↦ do
-    IO.println "connected to server"
-    handleCmd sock cmd
+  withUnixSocket sockPath (handleCmd · cmd)
