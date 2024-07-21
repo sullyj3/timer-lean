@@ -1,7 +1,7 @@
 import Timer
 
 open Lean (Json toJson fromJson?)
-open Timer (DaemonMode Command)
+open Timer (Command)
 
 structure TimerdState where
   nextTimerId : IO.Mutex Nat
@@ -114,15 +114,8 @@ def handleClient
 
 partial def forever (act : IO α) : IO β := act *> forever act
 
-def parseMode (args : List String) : Option DaemonMode :=
-  match args with
-  | [] => some .standalone
-  | ["--systemd"] => some .systemd
-  | _ => .none
-
-def timerDaemon (args : List String) : IO α := do
-  let mode ← (parseMode args).getOrFail "bad args"
-  let sock ← Timer.getSocket mode
+def timerDaemon : IO α := do
+  let sock ← Timer.getSocket
 
   IO.eprintln "timerd started"
   IO.eprintln "listening..."
@@ -134,6 +127,6 @@ def timerDaemon (args : List String) : IO α := do
     let _tsk ← IO.asTask <|
       handleClient client state
 
-def main (args : List String) : IO UInt32 := do
-  timerDaemon args
+def main : IO UInt32 := do
+  timerDaemon
   return 0

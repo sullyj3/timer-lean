@@ -43,27 +43,9 @@ def dataDir : IO (Option FilePath) := (· / "timer") <$$> xdgDataHome
 def getSockPath : IO FilePath :=
   runtimeDir <&> (· / "timerd.sock")
 
-inductive DaemonMode
-  | standalone | systemd
-
-def getSocket : DaemonMode → IO Socket
-  | .standalone => do
-    let sockPath ← getSockPath
-    IO.println s!"sockPath is {sockPath}"
-
-    if (← sockPath.pathExists) then do
-      IO.FS.removeFile sockPath
-
-    let addr := Socket.SockAddrUnix.unix sockPath
-    let sock : Socket ← Socket.mk .unix .stream
-
-    sock.bind addr
-    sock.listen 5
-    return sock
-
-  | .systemd =>
-    let systemdSocketActivationFd : UInt32 := 3
-    Socket.fromFd systemdSocketActivationFd
+def getSocket : IO Socket :=
+  let systemdSocketActivationFd : UInt32 := 3
+  Socket.fromFd systemdSocketActivationFd
 
 def runCmdSimple
   (cmd : String) (args : Array String := #[]) : IO UInt32 := do
