@@ -1,1 +1,1 @@
-cp timerd.service timerd.socket $HOME/.config/systemd/user/
+cp sandd.service sandd.socket $HOME/.config/systemd/user/

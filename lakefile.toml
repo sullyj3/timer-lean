@@ -1,16 +1,16 @@
 name = "timer"
-defaultTargets = ["timer"]
+defaultTargets = ["sand", "sandd"]
 
 [[lean_lib]]
-name = "Timer"
+name = "Sand"
 
 [[lean_exe]]
-name = "timer"
-root = "TimerClient"
+name = "sand"
+root = "SandClient"
 
 [[lean_exe]]
-name = "timerd"
-root = "TimerDaemon"
+name = "sandd"
+root = "SandDaemon"
 
 [[require]]
 name = "batteries"

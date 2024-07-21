@@ -1,7 +1,7 @@
-import Timer
+import Sand
 
 open Lean (Json toJson fromJson?)
-open Timer (Command)
+open Sand (Command)
 
 structure TimerdState where
   nextTimerId : IO.Mutex Nat
@@ -31,12 +31,12 @@ def removeTimer (state : TimerdState) (id : TimerId) : BaseIO Unit := do
 end TimerdState
 
 def playTimerSound : IO Unit := do
-  let some dir ← Timer.dataDir | do
+  let some dir ← Sand.dataDir | do
     IO.eprintln "Warning: failed to locate XDG_DATA_HOME. Audio will not work."
   let soundPath := dir / "simple-notification-152054.mp3"
 
   -- todo choose most appropriate media player, possibly record a dependency for package
-  _ ← Timer.runCmdSimple "mpv" #[soundPath.toString]
+  _ ← Sand.runCmdSimple "mpv" #[soundPath.toString]
 
 
 partial def busyWaitTil (due : Nat) : IO Unit := do
@@ -61,7 +61,7 @@ def addTimer (state : TimerdState) (startTime : Nat) (durationMs : Nat) : IO Uni
   let msg := s!"Starting timer for {durationMs}ms"
 
   IO.eprintln msg
-  _ ← Timer.notify msg
+  _ ← Sand.notify msg
 
   -- TODO: problem with this approach - time spent suspended is not counted.
   -- eg if I set a 1 minute timer, then suspend at 30s, the timer will
@@ -74,7 +74,7 @@ def addTimer (state : TimerdState) (startTime : Nat) (durationMs : Nat) : IO Uni
   waitTil timerDue
   let now2 ← IO.monoMsNow
   let diff := Int.subNatNat now2 timerDue
-  _ ← Timer.notify s!"Time's up! (late by {diff}ms)"
+  _ ← Sand.notify s!"Time's up! (late by {diff}ms)"
 
   _ ← IO.asTask playTimerSound
 
@@ -106,7 +106,7 @@ def handleClient
   let .ok (cmd : Command) := fromJson? =<< Json.parse clientMsg | do
     let errMsg := s!"failed to parse client message: invalid command \"{clientMsg}\""
     IO.eprintln errMsg
-    _ ← Timer.notify errMsg
+    _ ← Sand.notify errMsg
 
   match cmd with
   | .addTimer durationMs => addTimer state startTime durationMs
@@ -115,7 +115,7 @@ def handleClient
 partial def forever (act : IO α) : IO β := act *> forever act
 
 def timerDaemon : IO α := do
-  let sock ← Timer.getSocket
+  let sock ← Sand.getSocket
 
   IO.eprintln "timerd started"
   IO.eprintln "listening..."

@@ -1,2 +1,2 @@
 watch:
-	watchexec -w . lake build timerd timer
+	watchexec -w . lake build

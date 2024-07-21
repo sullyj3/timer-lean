@@ -1,9 +1,9 @@
 import Lean
 import Socket
 
-import Timer
+import Sand
 
-open Timer (Command)
+open Sand (Command)
 
 def withUnixSocket path (action : Socket → IO a) := do
   let addr := Socket.SockAddrUnix.unix path
@@ -68,7 +68,7 @@ def main (args : List String) : IO Unit := do
     println! "bad args"
     IO.Process.exit 1
 
-  let sockPath ← Timer.getSockPath
+  let sockPath ← Sand.getSockPath
   if not (← sockPath.pathExists) then do
     IO.println "socket doesn't exist. Is the server running?"
     IO.Process.exit 1

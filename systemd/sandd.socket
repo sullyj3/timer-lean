@@ -2,7 +2,7 @@
 Description=Countdown timer daemon socket
 
 [Socket]
-ListenStream=%t/timerd.sock
+ListenStream=%t/sandd.sock
 SocketMode=0666
 
 [Install]

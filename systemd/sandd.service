@@ -1,10 +1,10 @@
 [Unit]
 Description=Countdown timer daemon
-Requires=timerd.socket
+Requires=sandd.socket
 
 [Service]
 ; TODO change path
-ExecStart=/home/james/dev/timer-lean/.lake/build/bin/timerd
+ExecStart=/home/james/dev/sand/.lake/build/bin/sandd
 
 [Install]
 WantedBy=default.target

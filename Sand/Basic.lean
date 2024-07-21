@@ -36,12 +36,12 @@ structure Timer where
   due : Nat
   deriving Repr, ToJson, FromJson
 
-namespace Timer
+namespace Sand
 
-def dataDir : IO (Option FilePath) := (· / "timer") <$$> xdgDataHome
+def dataDir : IO (Option FilePath) := (· / "sand") <$$> xdgDataHome
 
 def getSockPath : IO FilePath :=
-  runtimeDir <&> (· / "timerd.sock")
+  runtimeDir <&> (· / "sandd.sock")
 
 def getSocket : IO Socket :=
   let systemdSocketActivationFd : UInt32 := 3
@@ -69,4 +69,4 @@ inductive Command
   | list
   deriving Repr, ToJson, FromJson
 
-end Timer
+end Sand
