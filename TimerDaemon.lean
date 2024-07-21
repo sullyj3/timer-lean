@@ -1,6 +1,6 @@
 import Timer
 
-open Lean (Json toJson)
+open Lean (Json toJson fromJson?)
 open Timer (DaemonMode Command)
 
 structure TimerdState where
@@ -102,7 +102,7 @@ def handleClient
   let bytes ← client.recv (maxBytes := 1024)
   let clientMsg := String.fromUTF8! bytes
 
-  let some (cmd : Command) := Command.parse clientMsg | do
+  let .ok (cmd : Command) := fromJson? =<< Json.parse clientMsg | do
     let errMsg := s!"failed to parse client message: invalid command \"{clientMsg}\""
     IO.eprintln errMsg
     _ ← Timer.notify errMsg

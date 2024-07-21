@@ -40,9 +40,9 @@ def showTimers (timers : List Timer) (now : Nat) : String :=
   else
     unlines <| List.map (showTimer now) <| timers
 
-open Lean (fromJson?) in
+open Lean (fromJson? toJson) in
 def handleCmd (sock : Socket) (cmd : Command) : IO Unit := do
-  let msg := cmd.toString
+  let msg : String := toString <| toJson cmd
   let _nBytes ← sock.send msg.toUTF8
 
   match cmd with

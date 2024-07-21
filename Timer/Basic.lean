@@ -85,22 +85,6 @@ def notify (message : String) : IO UInt32 :=
 inductive Command
   | addTimer (durationMs : Nat)
   | list
-  deriving Repr
-
-namespace Command
-
-def parse (str : String) : Option Command :=
-  match str.split Char.isWhitespace with
-  | ["add", nStr] => do
-    let n ← nStr.toNat?
-    return .addTimer n
-  | ["list"] => some .list
-  | _ => none
-
-def toString : Command → String
-  | addTimer ms => s!"add {ms}"
-  | list => "list"
-
-end Command
+  deriving Repr, ToJson, FromJson
 
 end Timer
