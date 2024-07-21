@@ -92,6 +92,10 @@ def handleClient
   (client : Socket)
   (state : TimerdState)
   : IO Unit := do
+
+  -- IO.monoMsNow is an ffi call to `std::chrono::steady_clock::now()`
+  -- Technically this clock is not guaranteed to be the same between
+  -- processes, but it seems to be in practice on linux
   let startTime ← IO.monoMsNow
 
   -- receive and parse message
