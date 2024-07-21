@@ -1,7 +1,7 @@
 import Lean
 import Socket
 
-open Lean (ToJson FromJson toJson fromJson?)
+open Lean (ToJson FromJson)
 open System (FilePath)
 
 def Option.getOrFail (msg : String) (x? : Option α) : IO α := do
