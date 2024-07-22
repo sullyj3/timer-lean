@@ -1,5 +1,6 @@
 import Lean
 import Socket
+import FFI
 
 import Sand
 
@@ -62,7 +63,7 @@ def handleCmd (sock : Socket) (cmd : Command) : IO Unit := do
     IO.println s!"now: {now}"
     IO.println <| showTimers timers now
 
-def main (args : List String) : IO Unit := do
+def sandClient (args : List String) : IO Unit := do
 
   let some cmd := parseArgs args | do
     println! "bad args"
@@ -74,3 +75,5 @@ def main (args : List String) : IO Unit := do
     IO.Process.exit 1
 
   withUnixSocket sockPath (handleCmd · cmd)
+
+def main := sandClient
