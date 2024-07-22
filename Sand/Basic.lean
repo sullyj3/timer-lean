@@ -14,13 +14,12 @@ private def runtimeDir : IO FilePath := do
   (← IO.getEnv "XDG_RUNTIME_DIR")
     |>.getOrFail "Error: failed to get XDG_RUNTIME_DIR!"
 
-infixr:100 " <$$> " => Functor.map ∘ Functor.map
-
-private def xdgDataHome : IO (Option FilePath) := do
-  let xdgDataHomeEnv? ← FilePath.mk <$$> IO.getEnv "XDG_DATA_HOME"
-  let home?           ← FilePath.mk <$$> IO.getEnv "HOME"
-  let dataHomeFallback? := home? <&> (· / ".local/share")
-  return xdgDataHomeEnv? <|> dataHomeFallback?
+private def xdgDataHome : OptionT BaseIO FilePath :=
+  xdgDataHomeEnv <|> dataHomeDefault
+  where
+    xdgDataHomeEnv  := FilePath.mk <$> (OptionT.mk <| IO.getEnv "XDG_DATA_HOME")
+    home            := FilePath.mk <$> (OptionT.mk <| IO.getEnv "HOME"         )
+    dataHomeDefault := home <&> (· / ".local/share")
 
 def TimerId := Nat
   deriving BEq, Repr, ToJson, FromJson
@@ -38,7 +37,7 @@ structure Timer where
 
 namespace Sand
 
-def dataDir : IO (Option FilePath) := (· / "sand") <$$> xdgDataHome
+def dataDir : OptionT BaseIO FilePath := xdgDataHome <&> (· / "sand")
 
 def getSockPath : IO FilePath :=
   runtimeDir <&> (· / "sandd.sock")

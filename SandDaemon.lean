@@ -31,7 +31,7 @@ def removeTimer (state : TimerdState) (id : TimerId) : BaseIO Unit := do
 end TimerdState
 
 def playTimerSound : IO Unit := do
-  let some dir ← Sand.dataDir | do
+  let some dir ← ↑(OptionT.run Sand.dataDir) | do
     IO.eprintln "Warning: failed to locate XDG_DATA_HOME. Audio will not work."
   let soundPath := dir / "simple-notification-152054.mp3"
   if not (← soundPath.pathExists) then do
