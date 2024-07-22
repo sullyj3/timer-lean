@@ -34,6 +34,9 @@ def playTimerSound : IO Unit := do
   let some dir ← Sand.dataDir | do
     IO.eprintln "Warning: failed to locate XDG_DATA_HOME. Audio will not work."
   let soundPath := dir / "simple-notification-152054.mp3"
+  if not (← soundPath.pathExists) then do
+    IO.eprintln "Warning: failed to locate notification sound. Audio will not work"
+    return ()
 
   -- todo choose most appropriate media player, possibly record a dependency for package
   _ ← Sand.runCmdSimple "mpv" #[soundPath.toString]
