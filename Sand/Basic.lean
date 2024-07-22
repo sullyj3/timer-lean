@@ -47,10 +47,11 @@ def getSocket : IO Socket :=
   let systemdSocketActivationFd : UInt32 := 3
   Socket.fromFd systemdSocketActivationFd
 
-def runCmdSimple
-  (cmd : String) (args : Array String := #[]) : IO UInt32 := do
+def nullStdioConfig : IO.Process.StdioConfig := ⟨.null, .null, .null⟩
+def SimpleChild : Type := IO.Process.Child nullStdioConfig
 
-  let child ← IO.Process.spawn
+def runCmdSimple (cmd : String) (args : Array String := #[]) : IO SimpleChild :=
+  IO.Process.spawn
     { cmd := cmd,
       args := args,
 
@@ -58,9 +59,8 @@ def runCmdSimple
       stdout := .null,
       stderr := .null,
     }
-  child.wait
 
-def notify (message : String) : IO UInt32 :=
+def notify (message : String) : IO SimpleChild :=
   runCmdSimple "notify-send" #[message]
 
 -- commands sent from client to server

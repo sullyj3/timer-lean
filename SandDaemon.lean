@@ -76,7 +76,7 @@ def addTimer (state : TimerdState) (startTime : Nat) (durationMs : Nat) : IO Uni
   let diff := Int.subNatNat now2 timerDue
   _ ← Sand.notify s!"Time's up! (late by {diff}ms)"
 
-  _ ← IO.asTask playTimerSound
+  playTimerSound
 
   let timerId := addTimerTask.get
   state.removeTimer timerId
