@@ -32,10 +32,12 @@ end TimerId
 
 structure Duration where
   millis : Nat
-  deriving Repr
+  deriving Repr, ToJson, FromJson
 
 
 namespace Duration
+
+def fromSeconds (seconds : Nat) : Duration := { millis := 1000 * seconds }
 
 -- This is for formatting, not canonical representation of
 -- duration
@@ -115,7 +117,7 @@ def notify (message : String) : IO SimpleChild :=
 
 -- commands sent from client to server
 inductive Command
-  | addTimer (durationMs : Nat)
+  | addTimer (duration : Duration)
   | list
   deriving Repr, ToJson, FromJson
 

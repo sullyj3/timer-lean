@@ -59,9 +59,9 @@ partial def waitTil (due : Nat) : IO Unit := do
   else do
     busyWaitTil due
 
-def addTimer (state : TimerdState) (startTime : Nat) (durationMs : Nat) : IO Unit := do
+def addTimer (state : TimerdState) (startTime : Nat) (duration : Duration) : IO Unit := do
   -- run timer
-  let msg := s!"Starting timer for {durationMs}ms"
+  let msg := s!"Starting timer for {duration.formatColonSeparated}"
 
   IO.eprintln msg
   _ ← Sand.notify msg
@@ -69,7 +69,7 @@ def addTimer (state : TimerdState) (startTime : Nat) (durationMs : Nat) : IO Uni
   -- TODO: problem with this approach - time spent suspended is not counted.
   -- eg if I set a 1 minute timer, then suspend at 30s, the timer will
   -- go off 30s after wake.
-  let timerDue := startTime + durationMs
+  let timerDue := startTime + duration.millis
 
   let addTimerTask : Task TimerId ← BaseIO.asTask <|
     state.addTimer timerDue

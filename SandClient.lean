@@ -23,7 +23,7 @@ def parseArgs : List String → Option Command
   | ["list"] => some .list
   | [strN] => do
     let nSeconds ← strN.toNat?
-    return .addTimer <| nSeconds * 1000
+    return .addTimer <| Duration.fromSeconds nSeconds
   | _ => none
 
 def unlines := String.intercalate "\n"
