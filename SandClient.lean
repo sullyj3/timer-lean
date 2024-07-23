@@ -47,8 +47,7 @@ def handleCmd (sock : Socket) (cmd : Command) : IO Unit := do
   let _nBytes ← sock.send msg.toUTF8
 
   match cmd with
-  | Command.addTimer _ => do
-    IO.println "sent message. Exiting"
+  | Command.addTimer _ => pure ()
   | Command.list => do
     let resp ← sock.recv 10240
 

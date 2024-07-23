@@ -39,7 +39,7 @@ def playTimerSound : IO Unit := do
     return ()
 
   -- todo choose most appropriate media player, possibly record a dependency for package
-  _ ← Sand.runCmdSimple "mpv" #[soundPath.toString]
+  _ ← Sand.runCmdSimple "paplay" #[soundPath.toString]
 
 
 partial def busyWaitTil (due : Nat) : IO Unit := do
