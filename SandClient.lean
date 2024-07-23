@@ -21,6 +21,7 @@ open System (FilePath)
 def parseArgs : List String → Option Command
   | [] => none
   | ["list"] => some .list
+  | ["ls"] => some .list
   | [strN] => do
     let nSeconds ← strN.toNat?
     return .addTimer <| Duration.fromSeconds nSeconds
@@ -33,7 +34,7 @@ def showTimer (now : Nat) : Timer → String
     let remaining : Duration := ⟨due - now⟩
     let formatted := remaining.formatColonSeparated
 
-    s!"{repr id} | {due} ({formatted} remaining)"
+    s!"#{repr id} | {formatted} remaining"
 
 def showTimers (timers : List Timer) (now : Nat) : String :=
   if timers.isEmpty then
@@ -59,7 +60,6 @@ def handleCmd (sock : Socket) (cmd : Command) : IO Unit := do
       println! "failed to parse message from server. exiting"
 
     let now ← IO.monoMsNow
-    IO.println s!"now: {now}"
     IO.println <| showTimers timers now
 
 def sandClient (args : List String) : IO Unit := do
