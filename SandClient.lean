@@ -26,7 +26,7 @@ def parseArgs : List String → Option Command
     return .addTimer <| nSeconds * 1000
   | _ => none
 
-def unlines := String.intercalate "¬"
+def unlines := String.intercalate "\n"
 
 def showTimer (now : Nat) : Timer → String
   | {id, due} =>
