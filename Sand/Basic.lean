@@ -110,6 +110,7 @@ def runCmdSimple (cmd : String) (args : Array String := #[]) : IO SimpleChild :=
     }
 
 def notify (message : String) : IO SimpleChild :=
+  -- TODO wrap libnotify with FFI so we can do this properly
   runCmdSimple "notify-send" #[message]
 
 -- commands sent from client to server
