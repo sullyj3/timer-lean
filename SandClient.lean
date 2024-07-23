@@ -30,10 +30,10 @@ def unlines := String.intercalate "\n"
 
 def showTimer (now : Nat) : Timer → String
   | {id, due} =>
-    let msRemaining := due - now
-    let sRemaining := msRemaining/1000
+    let remaining : Duration := ⟨due - now⟩
+    let formatted := remaining.formatColonSeparated
 
-    s!"{repr id} | {due} ({sRemaining}s remaining)"
+    s!"{repr id} | {due} ({formatted} remaining)"
 
 def showTimers (timers : List Timer) (now : Nat) : String :=
   if timers.isEmpty then
