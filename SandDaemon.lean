@@ -4,32 +4,32 @@ open System (FilePath)
 open Lean (Json toJson fromJson?)
 open Sand (Timer TimerId Command Duration)
 
-structure TimerdState where
+structure SanddState where
   nextTimerId : IO.Mutex Nat
   timers : IO.Mutex (Array Timer) -- TODO switch to hashmap or something
 
-namespace TimerdState
+namespace SanddState
 
-def initial : IO TimerdState := do
+def initial : IO SanddState := do
   return {
     nextTimerId := (← IO.Mutex.new 1),
     timers := (← IO.Mutex.new #[])
   }
 
-def addTimer (state : TimerdState) (due : Nat) : BaseIO TimerId := do
+def addTimer (state : SanddState) (due : Nat) : BaseIO TimerId := do
   let id : TimerId ← state.nextTimerId.atomically (getModify Nat.succ)
   let timer : Timer := ⟨id, due⟩
   state.timers.atomically <| modify (·.push timer)
   return id
 
 -- No-op if timer with TimerId `id` doesn't exist,
-def removeTimer (state : TimerdState) (id : TimerId) : BaseIO Unit := do
+def removeTimer (state : SanddState) (id : TimerId) : BaseIO Unit := do
   state.timers.atomically <| modify λ timers ↦
     match timers.findIdx? (λ timer ↦ timer.id == id) with
     | some idx => timers.eraseIdx idx
     | none => timers
 
-end TimerdState
+end SanddState
 
 private def xdgDataHome : OptionT BaseIO FilePath :=
   xdgDataHomeEnv <|> dataHomeDefault
@@ -68,7 +68,7 @@ partial def waitTil (due : Nat) : IO Unit := do
   else do
     busyWaitTil due
 
-def addTimer (state : TimerdState) (startTime : Nat) (duration : Duration) : IO Unit := do
+def addTimer (state : SanddState) (startTime : Nat) (duration : Duration) : IO Unit := do
   -- run timer
   let msg := s!"Starting timer for {duration.formatColonSeparated}"
 
@@ -94,14 +94,14 @@ def addTimer (state : TimerdState) (startTime : Nat) (duration : Duration) : IO 
 def serializeTimers (timers : Array Timer) : ByteArray :=
   String.toUTF8 <| toString <| toJson timers
 
-def list (state : TimerdState) (client : Socket) : IO Unit := do
+def list (state : SanddState) (client : Socket) : IO Unit := do
   let timers ← state.timers.atomically get
   _ ← client.send <| serializeTimers timers
 
 
 def handleClient
   (client : Socket)
-  (state : TimerdState)
+  (state : SanddState)
   : IO Unit := do
 
   -- IO.monoMsNow is an ffi call to `std::chrono::steady_clock::now()`
@@ -124,14 +124,14 @@ def handleClient
 
 partial def forever (act : IO α) : IO β := act *> forever act
 
-def timerDaemon : IO α := do
+def sandDaemon : IO α := do
   let systemdSockFd := 3
   let sock ← Socket.fromFd systemdSockFd
 
-  IO.eprintln "timerd started"
+  IO.eprintln "sandd started"
   IO.eprintln "listening..."
 
-  let state ← TimerdState.initial
+  let state ← SanddState.initial
 
   forever do
     let (client, _clientAddr) ← sock.accept
@@ -139,5 +139,5 @@ def timerDaemon : IO α := do
       handleClient client state
 
 def main : IO UInt32 := do
-  timerDaemon
+  sandDaemon
   return 0
