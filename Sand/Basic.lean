@@ -1,4 +1,3 @@
-import Lean
 import Socket
 
 open Lean (ToJson FromJson)
@@ -60,8 +59,6 @@ private def toHMSMs (d : Duration) : HMSMs :=
     seconds := Fin.ofNat' seconds  (Nat.zero_lt_succ _)
     millis  := Fin.ofNat' d.millis (Nat.zero_lt_succ _)
   }
-
-#eval (⟨60100⟩ : Duration).toHMSMs
 
 private def String.replicate (n : Nat) (c : Char) : String :=
   ⟨List.replicate n c⟩

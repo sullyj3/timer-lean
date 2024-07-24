@@ -1,6 +1,4 @@
-import Lean
 import Socket
-import FFI
 
 import Sand
 
