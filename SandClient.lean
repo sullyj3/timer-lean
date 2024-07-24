@@ -158,10 +158,28 @@ def handleCmd (sock : Socket) (cmd : Command) : IO Unit := do
     let now ← IO.monoMsNow
     IO.println <| showTimers timers now
 
+def usage : String := unlines [
+    "Usage:",
+    "",
+    "sand <DURATION>",
+    "  Start a new timer for the given duration.",
+    "",
+    "  Durations are specified with a space separated list of unit amounts.",
+    "  For example:",
+    "    sand 2hr 5min 3s 500ms",
+    "    sand 1m 3ms",
+    "  if no unit is provided, seconds are assumed",
+    "    sand 30",
+    "",
+    "sand ls | sand list   ",
+    "",
+    "  List active timers",
+  ]
+
 def sandClient (args : List String) : IO Unit := do
 
   let some cmd := parseArgs args | do
-    println! "bad args"
+    IO.println usage
     IO.Process.exit 1
 
   let sockPath ← Sand.getSockPath
