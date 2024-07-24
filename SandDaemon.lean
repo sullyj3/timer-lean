@@ -1,5 +1,6 @@
 import Sand
 
+open System (FilePath)
 open Lean (Json toJson fromJson?)
 open Sand (Timer TimerId Command Duration)
 
@@ -30,8 +31,17 @@ def removeTimer (state : TimerdState) (id : TimerId) : BaseIO Unit := do
 
 end TimerdState
 
+private def xdgDataHome : OptionT BaseIO FilePath :=
+  xdgDataHomeEnv <|> dataHomeDefault
+  where
+    xdgDataHomeEnv  := FilePath.mk <$> (OptionT.mk <| IO.getEnv "XDG_DATA_HOME")
+    home            := FilePath.mk <$> (OptionT.mk <| IO.getEnv "HOME"         )
+    dataHomeDefault := home <&> (· / ".local/share")
+
+def dataDir : OptionT BaseIO FilePath := xdgDataHome <&> (· / "sand")
+
 def playTimerSound : IO Unit := do
-  let some dir ← ↑(OptionT.run Sand.dataDir) | do
+  let some dir ← ↑(OptionT.run dataDir) | do
     IO.eprintln "Warning: failed to locate XDG_DATA_HOME. Audio will not work."
   let soundPath := dir / "simple-notification-152054.mp3"
   if not (← soundPath.pathExists) then do
@@ -40,7 +50,6 @@ def playTimerSound : IO Unit := do
 
   -- todo choose most appropriate media player, possibly record a dependency for package
   _ ← Sand.runCmdSimple "paplay" #[soundPath.toString]
-
 
 partial def busyWaitTil (due : Nat) : IO Unit := do
   while (← IO.monoMsNow) < due do
@@ -116,7 +125,8 @@ def handleClient
 partial def forever (act : IO α) : IO β := act *> forever act
 
 def timerDaemon : IO α := do
-  let sock ← Sand.getSocket
+  let systemdSockFd := 3
+  let sock ← Socket.fromFd systemdSockFd
 
   IO.eprintln "timerd started"
   IO.eprintln "listening..."

@@ -174,13 +174,26 @@ def usage : String := unlines [
     "  List active timers",
   ]
 
+def Option.getOrFail (msg : String) (x? : Option α) : IO α := do
+  let some x := x? | do
+    IO.eprintln msg
+    IO.Process.exit 1
+  return x
+
+def runtimeDir : IO FilePath := do
+  (← IO.getEnv "XDG_RUNTIME_DIR")
+    |>.getOrFail "Error: failed to get XDG_RUNTIME_DIR!"
+
+def getSockPath : IO FilePath :=
+  runtimeDir <&> (· / "sandd.sock")
+
 def sandClient (args : List String) : IO Unit := do
 
   let some cmd := parseArgs args | do
     IO.println usage
     IO.Process.exit 1
 
-  let sockPath ← Sand.getSockPath
+  let sockPath ← getSockPath
   if not (← sockPath.pathExists) then do
     IO.println "socket doesn't exist. Is the server running?"
     IO.Process.exit 1
