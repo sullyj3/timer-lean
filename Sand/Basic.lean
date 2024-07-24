@@ -32,8 +32,10 @@ end TimerId
 
 structure Duration where
   millis : Nat
-  deriving Repr, ToJson, FromJson
+  deriving Repr, ToJson, FromJson, BEq
 
+instance : Add Duration where
+  add | d1, d2 => { millis := d1.millis + d2.millis }
 
 namespace Duration
 
