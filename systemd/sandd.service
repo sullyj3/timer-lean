@@ -3,7 +3,7 @@ Description=Countdown timer daemon
 Requires=sandd.socket
 
 [Service]
-ExecStart=%h/.local/bin/sandd
+ExecStart=/usr/bin/sandd
 
 [Install]
 WantedBy=default.target
