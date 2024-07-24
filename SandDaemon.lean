@@ -1,7 +1,7 @@
 import Sand
 
 open Lean (Json toJson fromJson?)
-open Sand (Command)
+open Sand (Timer TimerId Command Duration)
 
 structure TimerdState where
   nextTimerId : IO.Mutex Nat

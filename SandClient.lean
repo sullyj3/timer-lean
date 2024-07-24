@@ -2,7 +2,7 @@ import Socket
 
 import Sand
 
-open Sand (Command)
+open Sand (Timer Command Duration)
 
 def withUnixSocket path (action : Socket → IO a) := do
   let addr := Socket.SockAddrUnix.unix path
