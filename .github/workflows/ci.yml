@@ -12,13 +12,13 @@ jobs:
         uses: actions/checkout@v4
       - name: Run Lean Action
         uses: leanprover/lean-action@v1
-      - name: Create archive
+      - name: Create package
         run: |
-          mkdir artefacts
-          cp .lake/build/bin/sand .lake/build/bin/sandd artefacts/
-          tar --create --gzip --file binaries.tar.gz -C artefacts .
-      - name: Upload binaries
+          mkdir package
+          cp .lake/build/bin/sand .lake/build/bin/sandd package/
+          cp -r systemd package/
+      - name: Upload artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: binaries-archive
-          path: binaries.tar.gz
+          name: sand
+          path: package/
