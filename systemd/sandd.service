@@ -3,8 +3,7 @@ Description=Countdown timer daemon
 Requires=sandd.socket
 
 [Service]
-; TODO change path
-ExecStart=/home/james/dev/sand/.lake/build/bin/sandd
+ExecStart=%h/.local/bin/sandd
 
 [Install]
 WantedBy=default.target
