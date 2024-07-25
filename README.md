@@ -10,10 +10,21 @@ lake build
 ```
 ### Dependencies
 - libnotify
-- mpv (optional, for notification sounds)
+- pulseaudio (for timer notification sounds)
 
 ### Installation
-(TODO)
+
+This is currently only tested on Arch. If you use a different distro, you'll 
+want to check and modify `install.sh` as appropriate. Let me know if this 
+method is sufficient for your distro. PRs for better compatibility welcome. 
+
+Distro specific packages TODO.
+
+```bash
+$ ./create_release.sh
+$ cd release
+$ sudo ./install.sh
+```
 
 ### Usage
 ```
