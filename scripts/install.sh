@@ -5,7 +5,8 @@ set -e
 BIN_PATH="/usr/bin/sand"
 SERVICE_PATH="/usr/lib/systemd/user/sand.service"
 SOCKET_PATH="/usr/lib/systemd/user/sand.socket"
-SOUND_PATH="/usr/share/sand/timer_sound.opus"
+SOUND_DIR="/usr/share/sand"
+SOUND_PATH="$SOUND_DIR/timer_sound.opus"
 
 install_sand() {
     set -x
@@ -30,6 +31,7 @@ uninstall_sand() {
     set -x
 
     rm -f "$BIN_PATH" "$SERVICE_PATH" "$SOCKET_PATH" "$SOUND_PATH"
+    rm -rf "$SOUND_DIR"
 
     { set +x; } 2>/dev/null
 
