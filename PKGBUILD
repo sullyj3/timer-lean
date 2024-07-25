@@ -1,4 +1,7 @@
-# Maintainer: Your Name <your.email@example.com>
+# Maintainer: James Sully <sullyj3@gmail.com>
+
+# this PKGBUILD is WIP
+
 pkgname=sand
 pkgver=108ace95506895d5f2f9b90e788b4b68544f5e56
 pkgrel=1
