@@ -43,7 +43,7 @@ def dataDir : OptionT BaseIO FilePath := xdgDataHome <&> (· / "sand")
 def playTimerSound : IO Unit := do
   let some dir ← ↑(OptionT.run dataDir) | do
     IO.eprintln "Warning: failed to locate XDG_DATA_HOME. Audio will not work."
-  let soundPath := dir / "simple-notification-152054.mp3"
+  let soundPath := dir / "timer_sound.opus"
   if not (← soundPath.pathExists) then do
     IO.eprintln "Warning: failed to locate notification sound. Audio will not work"
     return ()
