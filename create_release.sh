@@ -5,9 +5,8 @@ if [ ! -f .lake/build/bin/sand ]; then
     exit 1
 fi
 
-# tag=$(git describe --tags --abbrev=0)
-# dir="sand-$tag"
-dir="sand"
+tag=$(git describe --tags --abbrev=0)
+dir="sand-$tag"
 
 set -x
 

@@ -9,6 +9,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-tags: "true"
       - name: Run Lean Action
         uses: leanprover/lean-action@v1
         with:
@@ -16,10 +18,10 @@ jobs:
           use-mathlib-cache: "false"
           build: "true"
       - name: Create package
+        id: create-package
         run: |
           ./create_release.sh
       - name: Upload artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: sand
-          path: release/sand-x86_64-linux.tar.zst
+          path: release/sand-*-x86_64-linux.tar.zst
