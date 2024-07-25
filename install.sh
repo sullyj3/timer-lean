@@ -1,7 +1,61 @@
+#!/bin/bash
 
-install -Dm755 .lake/build/bin/sand /usr/bin/sand
-install -Dm644 resources/systemd/sand.service /usr/lib/systemd/user/sand.service
-install -Dm644 resources/systemd/sand.socket /usr/lib/systemd/user/sand.socket
-install -Dm644 resources/timer_sound.opus /usr/share/sand/timer_sound.opus
+set -e
 
-systemctl --user daemon-reload
+BIN_PATH="/usr/bin/sand"
+SERVICE_PATH="/usr/lib/systemd/user/sand.service"
+SOCKET_PATH="/usr/lib/systemd/user/sand.socket"
+SOUND_PATH="/usr/share/sand/timer_sound.opus"
+
+install_sand() {
+    set -x
+    
+    install -Dm755 .lake/build/bin/sand "$BIN_PATH"
+    install -Dm644 resources/systemd/sand.service "$SERVICE_PATH"
+    install -Dm644 resources/systemd/sand.socket "$SOCKET_PATH"
+    install -Dm644 resources/timer_sound.opus "$SOUND_PATH"
+
+    { set +x; } 2>/dev/null
+
+    echo 'sand installed successfully'
+    echo
+    echo 'To enable and start the sand daemon, run:'
+    echo '    $ systemctl --user daemon-reload'
+    echo '    $ systemctl --user enable --now sand.socket'
+    echo 'To check everything is working, run `sand 0`. You should get a notification and a sound.'
+    echo 'To uninstall, run `sudo ./install.sh uninstall`.'
+}
+
+uninstall_sand() {
+    set -x
+
+    rm -f "$BIN_PATH" "$SERVICE_PATH" "$SOCKET_PATH" "$SOUND_PATH"
+
+    { set +x; } 2>/dev/null
+
+    echo 'sand uninstalled successfully'
+}
+
+show_help() {
+    echo "Usage: $0 {install|uninstall}"
+    exit 1
+}
+
+# Check if run with sufficient permissions
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root or use sudo"
+    exit 1
+fi
+
+# Parse command line arguments
+case "$1" in
+    install|"")
+        install_sand
+        ;;
+    uninstall)
+        uninstall_sand
+        ;;
+    *)
+        show_help
+        ;;
+esac
