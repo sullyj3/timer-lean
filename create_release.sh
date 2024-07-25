@@ -5,17 +5,31 @@ if [ ! -f .lake/build/bin/sand ]; then
     exit 1
 fi
 
-mkdir -p release
+# tag=$(git describe --tags --abbrev=0)
+# dir="sand-$tag"
+dir="sand"
 
-cp -f .lake/build/bin/sand release/
-cp -rf resources release/
-cp -f scripts/install.sh release/
-cp -f LICENSE release/
-cp -f README.md release/
+set -x
 
-strip release/sand
+mkdir -p "release/$dir"
 
-tar --zstd -cvf release.tar.zst release 2>&1 > /dev/null
+cp -f .lake/build/bin/sand release/$dir/
+cp -rf resources release/$dir/
+cp -f scripts/install.sh release/$dir/
+cp -f LICENSE release/$dir/
+cp -f README.md release/$dir/
 
-echo 'release created at `release`'
-echo 'release archive created at `release.tar.zst`'
+pushd release/ > /dev/null
+
+strip $dir/sand
+
+archive="$dir-x86_64-linux.tar.zst"
+
+tar --zstd -cvf $archive $dir 2>&1 > /dev/null
+
+popd > /dev/null
+
+set +x
+
+echo "release created at release/$dir"
+echo "release archive created at release/$archive"
