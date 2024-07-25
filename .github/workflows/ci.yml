@@ -23,4 +23,4 @@ jobs:
         uses: actions/upload-artifact@v4.3.4
         with:
           name: sand
-          path: release/
+          path: release.tar.zst

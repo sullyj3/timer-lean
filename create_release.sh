@@ -15,4 +15,7 @@ cp -f README.md release/
 
 strip release/sand
 
-echo "Created release in ./release"
+tar --zstd -cvf release.tar.zst release 2>&1 > /dev/null
+
+echo 'release created at `release`'
+echo 'release archive created at `release.tar.zst`'
