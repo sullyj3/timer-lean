@@ -13,4 +13,6 @@ cp -f scripts/install.sh release/
 cp -f LICENSE release/
 cp -f README.md release/
 
+strip release/sand
+
 echo "Created release in ./release"
