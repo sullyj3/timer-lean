@@ -1,3 +1,4 @@
+import Lean
 import Socket
 
 open Lean (ToJson FromJson)

@@ -31,7 +31,6 @@ package() {
     
     # Install both sand and sandd to /usr/bin
     install -Dm755 .lake/build/bin/sand "$pkgdir/usr/bin/sand"
-    install -Dm755 .lake/build/bin/sandd "$pkgdir/usr/bin/sandd"
     
     # Install systemd user units
     install -Dm644 systemd/sandd.service "$pkgdir/usr/lib/systemd/user/sandd.service"

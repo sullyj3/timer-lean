@@ -10,6 +10,4 @@ package sand where
 lean_lib Sand
 
 @[default_target] lean_exe sand where 
-  root := `SandClient
-@[default_target] lean_exe sandd where 
-  root := `SandDaemon
+  root := `Main

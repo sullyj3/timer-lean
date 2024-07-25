@@ -1,4 +1,4 @@
-import Sand
+import «Sand».Basic
 
 open System (FilePath)
 open Lean (Json toJson fromJson?)
@@ -124,7 +124,8 @@ def handleClient
 
 partial def forever (act : IO α) : IO β := act *> forever act
 
-def sandDaemon : IO α := do
+namespace SandDaemon
+def main (_args : List String) : IO α := do
   let systemdSockFd := 3
   let sock ← Socket.fromFd systemdSockFd
 
@@ -137,7 +138,4 @@ def sandDaemon : IO α := do
     let (client, _clientAddr) ← sock.accept
     let _tsk ← IO.asTask <|
       handleClient client state
-
-def main : IO UInt32 := do
-  sandDaemon
-  return 0
+end SandDaemon

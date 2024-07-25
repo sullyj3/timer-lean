@@ -1,6 +1,5 @@
 import Socket
-
-import Sand
+import «Sand».Basic
 
 open Sand (Timer Command Duration)
 
@@ -183,7 +182,7 @@ def runtimeDir : IO FilePath := do
 def getSockPath : IO FilePath :=
   runtimeDir <&> (· / "sandd.sock")
 
-def sandClient (args : List String) : IO Unit := do
+def SandClient.main (args : List String) : IO UInt32 := do
   let some cmd := parseArgs args | do
     IO.println usage
     IO.Process.exit 1
@@ -194,5 +193,4 @@ def sandClient (args : List String) : IO Unit := do
     IO.Process.exit 1
 
   withUnixSocket sockPath (handleCmd · cmd)
-
-def main := sandClient
+  return 0

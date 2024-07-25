@@ -19,10 +19,9 @@ jobs:
       - name: Create package
         run: |
           mkdir package
-          cp .lake/build/bin/sand .lake/build/bin/sandd package/
+          cp .lake/build/bin/sand package/
           cp -r systemd package/
           strip package/sand
-          strip package/sandd
       - name: Upload artifact
         uses: actions/upload-artifact@v4.3.4
         with:
