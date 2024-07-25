@@ -36,6 +36,6 @@ package() {
     install -Dm755 .lake/build/bin/sand "$pkgdir/usr/bin/sand"
     
     # Install systemd user units
-    install -Dm644 resources/systemd/sandd.service "$pkgdir/usr/lib/systemd/user/sandd.service"
-    install -Dm644 resources/systemd/sandd.socket "$pkgdir/usr/lib/systemd/user/sandd.socket"
+    install -Dm644 resources/systemd/sand.service "$pkgdir/usr/lib/systemd/user/sand.service"
+    install -Dm644 resources/systemd/sand.socket "$pkgdir/usr/lib/systemd/user/sand.socket"
 }

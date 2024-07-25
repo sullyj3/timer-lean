@@ -1,6 +1,6 @@
 [Unit]
 Description=Countdown timer daemon
-Requires=sandd.socket
+Requires=sand.socket
 
 [Service]
 ExecStart=/usr/bin/sand daemon
