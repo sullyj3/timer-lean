@@ -10,7 +10,7 @@ SOUND_PATH="/usr/share/sand/timer_sound.opus"
 install_sand() {
     set -x
     
-    install -Dm755 .lake/build/bin/sand "$BIN_PATH"
+    install -Dm755 ./sand "$BIN_PATH"
     install -Dm644 resources/systemd/sand.service "$SERVICE_PATH"
     install -Dm644 resources/systemd/sand.socket "$SOCKET_PATH"
     install -Dm644 resources/timer_sound.opus "$SOUND_PATH"
