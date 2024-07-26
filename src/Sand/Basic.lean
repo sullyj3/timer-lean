@@ -89,6 +89,8 @@ def notify (message : String) : IO SimpleChild :=
 inductive Command
   | addTimer (duration : Duration)
   | list
+  -- TODO
+  -- | cancel (which : TimerId)
   deriving Repr, ToJson, FromJson
 
 end Sand

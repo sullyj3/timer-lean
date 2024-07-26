@@ -29,6 +29,10 @@ def removeTimer (state : SanddState) (id : TimerId) : BaseIO Unit := do
     | some idx => timers.eraseIdx idx
     | none => timers
 
+def timerExists (state : SanddState) (id : TimerId) : BaseIO Bool := do
+  let timers ← state.timers.atomically get
+  return timers.find? (·.id == id) |>.isSome
+
 end SanddState
 
 private def xdgDataHome : OptionT BaseIO FilePath :=
@@ -58,15 +62,25 @@ partial def busyWaitTil (due : Nat) : IO Unit := do
 -- IO.sleep isn't guaranteed to be on time, I find it's usually about 10ms late
 -- this strategy aims to be exactly on time (to the millisecond), while
 -- avoiding a long busy wait which consumes too much cpu.
-partial def waitTil (due : Nat) : IO Unit := do
-  let remaining_ms := due - (← IO.monoMsNow)
-  -- We sleep while there's enough time left that we can afford to be inaccurate
-  if remaining_ms > 50 then do
-    IO.sleep (remaining_ms/2).toUInt32
-    waitTil due
-  -- then busy wait when we need to be on time
-  else do
-    busyWaitTil due
+partial def countdown
+  (state : SanddState) (id : TimerId) (due : Nat) : IO Unit := loop
+  where
+  loop := do
+    let remaining_ms := due - (← IO.monoMsNow)
+    if remaining_ms == 0 then
+      _ ← Sand.notify s!"Time's up!"
+      playTimerSound
+      state.removeTimer id
+      return
+
+    -- We repeatedly sleep while there's enough time left that we can afford to
+    -- be inaccurate, and spin once we're close to the due time.
+    if remaining_ms > 30 then
+      IO.sleep (remaining_ms/2).toUInt32
+
+    -- continue counting down if the timer hasn't been canceled
+    if (← state.timerExists id) then
+      loop
 
 def addTimer (state : SanddState) (startTime : Nat) (duration : Duration) : IO Unit := do
   -- run timer
@@ -80,16 +94,9 @@ def addTimer (state : SanddState) (startTime : Nat) (duration : Duration) : IO U
   -- go off 30s after wake.
   let timerDue := startTime + duration.millis
 
-  let addTimerTask : Task TimerId ← BaseIO.asTask <|
-    state.addTimer timerDue
+  let timerId ← state.addTimer timerDue
+  countdown state timerId timerDue
 
-  waitTil timerDue
-  _ ← Sand.notify s!"Time's up!"
-
-  playTimerSound
-
-  let timerId := addTimerTask.get
-  state.removeTimer timerId
 
 def serializeTimers (timers : Array Timer) : ByteArray :=
   String.toUTF8 <| toString <| toJson timers
