@@ -180,7 +180,7 @@ def runtimeDir : IO FilePath := do
   return dir
 
 def getSockPath : IO FilePath :=
-  runtimeDir <&> (· / "sandd.sock")
+  runtimeDir <&> (· / "sand.sock")
 
 def SandClient.main (args : List String) : IO UInt32 := do
   let some cmd := parseArgs args | do
