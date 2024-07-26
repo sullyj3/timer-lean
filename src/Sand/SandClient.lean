@@ -116,6 +116,9 @@ def parseArgs : List String → Option Command
   | [] => none
   | ["list"] => some .list
   | ["ls"] => some .list
+  | ["cancel", idStr] => do
+    let timerId ← idStr.toNat?
+    return .cancelTimer timerId
   | args => do
     let duration ← parseTimer args
     return .addTimer duration
@@ -142,6 +145,7 @@ def handleCmd (sock : Socket) (cmd : Command) : IO Unit := do
 
   match cmd with
   | Command.addTimer _ => pure ()
+  | Command.cancelTimer _ => pure ()
   | Command.list => do
     let resp ← sock.recv 10240
 

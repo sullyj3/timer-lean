@@ -22,12 +22,18 @@ def addTimer (state : SanddState) (due : Nat) : BaseIO TimerId := do
   state.timers.atomically <| modify (·.push timer)
   return id
 
--- No-op if timer with TimerId `id` doesn't exist,
-def removeTimer (state : SanddState) (id : TimerId) : BaseIO Unit := do
-  state.timers.atomically <| modify λ timers ↦
-    match timers.findIdx? (λ timer ↦ timer.id == id) with
-    | some idx => timers.eraseIdx idx
-    | none => timers
+inductive RemoveTimerResult
+  | removed
+  | notFound
+
+def removeTimer (state : SanddState) (id : TimerId) : BaseIO RemoveTimerResult := do
+  let timers ← state.timers.atomically get
+  match timers.findIdx? (λ timer ↦ timer.id == id) with
+  | some idx => do
+    state.timers.atomically <| set <| timers.eraseIdx idx
+    pure .removed
+  | none => do
+    pure .notFound
 
 def timerExists (state : SanddState) (id : TimerId) : BaseIO Bool := do
   let timers ← state.timers.atomically get
@@ -70,7 +76,7 @@ partial def countdown
     if remaining_ms == 0 then
       _ ← Sand.notify s!"Time's up!"
       playTimerSound
-      state.removeTimer id
+      _ ← state.removeTimer id
       return
 
     -- We repeatedly sleep while there's enough time left that we can afford to
@@ -127,6 +133,12 @@ def handleClient
 
   match cmd with
   | .addTimer durationMs => addTimer state startTime durationMs
+  | .cancelTimer which => do
+    match ← state.removeTimer which with
+    | .notFound => do
+      -- TODO tell client it doesn't exist
+      pure ()
+    | .removed => pure ()
   | .list => list state client
 
 partial def forever (act : IO α) : IO β := act *> forever act
