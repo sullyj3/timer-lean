@@ -2,19 +2,32 @@
 
 set -e
 
-BIN_PATH="/usr/bin/sand"
-SERVICE_PATH="/usr/lib/systemd/user/sand.service"
-SOCKET_PATH="/usr/lib/systemd/user/sand.socket"
-SOUND_DIR="/usr/share/sand"
+PREFIX="${PREFIX:-/usr/local}"
+
+BIN_PATH="$PREFIX/bin/sand"
+SERVICE_PATH="$PREFIX/lib/systemd/user/sand.service"
+SOCKET_PATH="$PREFIX/lib/systemd/user/sand.socket"
+
+SOUND_DIR="$PREFIX/share/sand"
 SOUND_PATH="$SOUND_DIR/timer_sound.opus"
+
+README_DIR="$PREFIX/share/doc/sand"
+README_PATH="$README_DIR/README.md"
+
+LICENSE_DIR="$PREFIX/share/licenses/sand"
+LICENSE_PATH="$LICENSE_DIR/LICENSE"
 
 install_sand() {
     set -x
     
-    install -Dm755 ./sand "$BIN_PATH"
+    install -Dm755 ./.lake/build/bin/sand "$BIN_PATH"
     install -Dm644 resources/systemd/sand.service "$SERVICE_PATH"
     install -Dm644 resources/systemd/sand.socket "$SOCKET_PATH"
     install -Dm644 resources/timer_sound.opus "$SOUND_PATH"
+    install -Dm644 README.md "$README_PATH"
+    install -Dm644 LICENSE "$LICENSE_PATH"
+
+    strip "$BIN_PATH"
 
     { set +x; } 2>/dev/null
 
@@ -30,8 +43,12 @@ install_sand() {
 uninstall_sand() {
     set -x
 
-    rm -f "$BIN_PATH" "$SERVICE_PATH" "$SOCKET_PATH" "$SOUND_PATH"
-    rm -rf "$SOUND_DIR"
+    rm -f "$BIN_PATH" 
+    rm -f "$SERVICE_PATH" 
+    rm -f "$SOCKET_PATH"
+    rm -rf "$SOUND_DIR" 
+    rm -rf "$README_DIR" 
+    rm -rf "$LICENSE_DIR"
 
     { set +x; } 2>/dev/null
 
@@ -43,13 +60,6 @@ show_help() {
     exit 1
 }
 
-# Check if run with sufficient permissions
-if [ "$EUID" -ne 0 ]; then
-    echo "Please run as root or use sudo"
-    exit 1
-fi
-
-# Parse command line arguments
 case "$1" in
     install|"")
         install_sand

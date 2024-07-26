@@ -16,10 +16,16 @@ jobs:
           use-mathlib-cache: "false"
           build: "true"
       - name: Create package
+        # todo parameterize version
         run: |
-          ./create_release.sh
+          RELEASE_DIR=sand-release
+          mkdir -p $RELEASE_DIR
+          env PREFIX="$RELEASE_DIR" ./install.sh
+          RELEASE_ARCHIVE=sand-x86_64-linux.tar.zst
+          tar --zstd -cvf "$RELEASE_ARCHIVE" "$RELEASE_DIR"
+          echo "release archive created at $RELEASE_ARCHIVE"
       - name: Upload artifact
         uses: actions/upload-artifact@v4.3.4
         with:
           name: sand
-          path: release/sand-x86_64-linux.tar.zst
+          path: sand-x86_64-linux.tar.zst
