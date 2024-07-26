@@ -1,15 +1,32 @@
 # Sand
-A systemd service and CLI program for setting countdown timers
 
-# Installation
-## Arch linux
+Command line countdown timers that don't take up a terminal.
+
+`sand` runs as a daemon in the background, allowing you to set timers
+without having to worry about keeping the terminal open. You can also start 
+timers from your app launcher/command runner of choice.
+
+```
+▷ sand 5m
+▷ sand 1h 30s
+▷ sand ls
+#1 | 00:04:51:856 remaining
+#2 | 01:00:27:686 remaining
+```
+A sound will play and a desktop notification will be triggered when a timer 
+elapses.
+
+I use it for remembering to get things out of the oven.
+
+## Installation
+### Arch linux
 A PKGBUILD is provided on the releases page.
 
 1. Download the PKGBUILD into an empty directory
 2. `makepkg`
 3. `sudo pacman -U <built package>`
 
-## Other distros
+### Other distros
 
 1. Make sure you have the dependencies: 
     - systemd
@@ -24,23 +41,13 @@ A PKGBUILD is provided on the releases page.
    distro.
 5. `sudo ./install.sh`
 
-# Setup:
+## Setup
 After installing, you'll need to enable and start the service. 
 
 1. `systemctl --user daemon-reload`
 2. `systemctl --user enable --now sand.socket`
 
-### Usage
-```
-$ sand 30
-
-$ sand ls
-#1 | 00:00:04:026 remaining
-
-```
-A notification will be triggered when the timer elapses.
-
-### Building from source
+## Building from source
 You'll need a lean toolchain, which can be installed using [elan](https://github.com/leanprover/elan). 
 
 Once that's done, run
