@@ -94,10 +94,8 @@ inductive Command
 
 -- responses to commands sent from server to client
 inductive CmdResponse
-  -- acknowledgement of `addTimer` and `cancelTimer`
   | ok
   | list (timers : Array Timer)
-  -- response to `cancelTimer` of nonexistent `TimerId`
   | timerNotFound (which : TimerId)
   deriving ToJson, FromJson
 

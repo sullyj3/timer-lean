@@ -29,19 +29,20 @@ def addTimer (state : SanddState) (due : Nat) : BaseIO TimerId := do
   state.timers.atomically <| modify (·.insert id timer)
   return id
 
-inductive RemoveTimerResult
-  | removed
+inductive TimerOpError
   | notFound
 
-def removeTimer (state : SanddState) (id : TimerId) : BaseIO RemoveTimerResult := do
+def TimerOpResult α := Except TimerOpError α
+
+def removeTimer (state : SanddState) (id : TimerId) : BaseIO (TimerOpResult Unit) := do
   let timers ← state.timers.atomically get
   -- match timers.findIdx? (λ timer ↦ timer.id == id) with
   match timers.find? id with
   | some _ => do
     state.timers.atomically <| set <| timers.erase id
-    pure .removed
+    pure <| .ok ()
   | none => do
-    pure .notFound
+    pure <| .error .notFound
 
 def timerExists (state : SanddState) (id : TimerId) : BaseIO Bool := do
   let timers ← state.timers.atomically get
@@ -120,9 +121,9 @@ def handleClientCmd
     _ ← client.send CmdResponse.ok.serialize
   | .cancelTimer which => do
     match ← state.removeTimer which with
-    | .notFound => do
+    | .error .notFound => do
       _ ← client.send <| (CmdResponse.timerNotFound which).serialize
-    | .removed => do
+    | .ok () => do
       _ ← client.send CmdResponse.ok.serialize
   | .list => do
     let timers ← state.timers.atomically get
