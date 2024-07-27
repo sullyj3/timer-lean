@@ -15,15 +15,13 @@ structure SanddState where
   nextTimerId : IO.Mutex Nat
   timers : IO.Mutex (HashMap Nat Timer)
 
-namespace SanddState
-
-def initial : IO SanddState := do
+def SanddState.initial : IO SanddState := do
   return {
     nextTimerId := (← IO.Mutex.new 1),
     timers := (← IO.Mutex.new ∅)
   }
 
-def addTimer (state : SanddState) (due : Nat) : BaseIO TimerId := do
+def SanddState.addTimer (state : SanddState) (due : Nat) : BaseIO TimerId := do
   let id : TimerId ← state.nextTimerId.atomically (getModify Nat.succ)
   let timer : Timer := ⟨id, due⟩
   state.timers.atomically <| modify (·.insert id timer)
@@ -35,13 +33,13 @@ inductive TimerOpError
 
 def TimerOpResult α := Except TimerOpError α
 
-def pauseTimer (state : SanddState) (timerId : TimerId)
+def SanddState.pauseTimer (state : SanddState) (timerId : TimerId)
   : BaseIO (TimerOpResult Unit) := sorry
 
-def resumeTimer (state : SanddState) (timerId : TimerId)
+def SanddState.resumeTimer (state : SanddState) (timerId : TimerId)
   : BaseIO (TimerOpResult Unit) := sorry
 
-def removeTimer (state : SanddState) (id : TimerId) : BaseIO (TimerOpResult Unit) := do
+def SanddState.removeTimer (state : SanddState) (id : TimerId) : BaseIO (TimerOpResult Unit) := do
   let timers ← state.timers.atomically get
   -- match timers.findIdx? (λ timer ↦ timer.id == id) with
   match timers.find? id with
@@ -51,11 +49,9 @@ def removeTimer (state : SanddState) (id : TimerId) : BaseIO (TimerOpResult Unit
   | none => do
     pure <| .error .notFound
 
-def timerExists (state : SanddState) (id : TimerId) : BaseIO Bool := do
+def SanddState.timerExists (state : SanddState) (id : TimerId) : BaseIO Bool := do
   let timers ← state.timers.atomically get
   return timers.find? id |>.isSome
-
-end SanddState
 
 private def xdgDataHome : OptionT BaseIO FilePath :=
   xdgDataHomeEnv <|> dataHomeDefault
