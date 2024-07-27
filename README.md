@@ -47,6 +47,14 @@ After installing, you'll need to enable and start the service.
 1. `systemctl --user daemon-reload`
 2. `systemctl --user enable --now sand.socket`
 
+To see notifications, you'll need a libnotify compatible notification server. I use [swaync](https://github.com/ErikReider/SwayNotificationCenter).
+
+You can type 
+```
+$ sand 0
+```
+to check everything's working correctly.
+
 ## Building from source
 You'll need a lean toolchain, which can be installed using [elan](https://github.com/leanprover/elan). 
 
