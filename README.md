@@ -6,10 +6,10 @@ Command line countdown timers that don't take up a terminal.
 without having to worry about keeping the terminal open. You can also start 
 timers from your app launcher/command runner of choice.
 
-```
-▷ sand 5m
-▷ sand 1h 30s
-▷ sand ls
+```bash
+$ sand 5m
+$ sand 1h 30s
+$ sand ls
 #1 | 00:04:51:856 remaining
 #2 | 01:00:27:686 remaining
 ```
@@ -44,13 +44,15 @@ A PKGBUILD is provided on the releases page.
 ## Setup
 After installing, you'll need to enable and start the service. 
 
-1. `systemctl --user daemon-reload`
-2. `systemctl --user enable --now sand.socket`
+```bash
+$ systemctl --user daemon-reload
+$ systemctl --user enable --now sand.socket
+```
 
 To see notifications, you'll need a libnotify compatible notification server. I use [swaync](https://github.com/ErikReider/SwayNotificationCenter).
 
 You can type 
-```
+```bash
 $ sand 0
 ```
 to check everything's working correctly.
@@ -59,8 +61,8 @@ to check everything's working correctly.
 You'll need a lean toolchain, which can be installed using [elan](https://github.com/leanprover/elan). 
 
 Once that's done, run
-```
-lake build
+```bash
+$ lake build
 ```
 
 The executable will be in `./.lake/build/bin/sand`.
