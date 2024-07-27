@@ -6,7 +6,10 @@ open Lean (Json toJson fromJson?)
 
 open Batteries (HashMap)
 
-open Sand (Timer TimerId Command Duration)
+open Sand (Timer TimerId Command CmdResponse Duration)
+
+def Batteries.HashMap.values [BEq α] [Hashable α] (hashMap : HashMap α β) : Array β :=
+  hashMap.toArray |>.map Prod.snd
 
 structure SanddState where
   nextTimerId : IO.Mutex Nat
@@ -108,19 +111,22 @@ def addTimer (state : SanddState) (startTime : Nat) (duration : Duration) : IO U
   let timerId ← state.addTimer timerDue
   countdown state timerId timerDue
 
+def handleClientCmd
+  (client : Socket) (state : SanddState) (clientConnectedTime : Nat)
+  : Command → IO Unit
 
-def serializeTimers (timers : HashMap Nat Timer) : ByteArray :=
-  timers
-    |>.toArray
-    |>.map Prod.snd -- get values
-    |> toJson
-    |> toString
-    |>.toUTF8
-
-def list (state : SanddState) (client : Socket) : IO Unit := do
-  let timers ← state.timers.atomically get
-  _ ← client.send <| serializeTimers timers
-
+  | .addTimer durationMs => do
+    _ ← IO.asTask <| addTimer state clientConnectedTime durationMs
+    _ ← client.send CmdResponse.ok.serialize
+  | .cancelTimer which => do
+    match ← state.removeTimer which with
+    | .notFound => do
+      _ ← client.send <| (CmdResponse.timerNotFound which).serialize
+    | .removed => do
+      _ ← client.send CmdResponse.ok.serialize
+  | .list => do
+    let timers ← state.timers.atomically get
+    _ ← client.send <| (CmdResponse.list timers.values).serialize
 
 def handleClient
   (client : Socket)
@@ -130,7 +136,7 @@ def handleClient
   -- IO.monoMsNow is an ffi call to `std::chrono::steady_clock::now()`
   -- Technically this clock is not guaranteed to be the same between
   -- processes, but it seems to be in practice on linux
-  let startTime ← IO.monoMsNow
+  let clientConnectedTime ← IO.monoMsNow
 
   -- receive and parse message
   let bytes ← client.recv (maxBytes := 1024)
@@ -141,15 +147,7 @@ def handleClient
     IO.eprintln errMsg
     _ ← Sand.notify errMsg
 
-  match cmd with
-  | .addTimer durationMs => addTimer state startTime durationMs
-  | .cancelTimer which => do
-    match ← state.removeTimer which with
-    | .notFound => do
-      -- TODO tell client it doesn't exist
-      pure ()
-    | .removed => pure ()
-  | .list => list state client
+  handleClientCmd client state clientConnectedTime cmd
 
 partial def forever (act : IO α) : IO β := act *> forever act
 

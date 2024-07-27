@@ -1,7 +1,7 @@
 import Socket
 import «Sand».Basic
 
-open Sand (Timer Command Duration)
+open Sand (Timer Command CmdResponse Duration)
 
 def withUnixSocket path (action : Socket → IO a) := do
   let addr := Socket.SockAddrUnix.unix path
@@ -139,25 +139,46 @@ def showTimers (timers : List Timer) (now : Nat) : String :=
     unlines <| List.map (showTimer now) <| timers
 
 open Lean (fromJson? toJson) in
-def handleCmd (sock : Socket) (cmd : Command) : IO Unit := do
+def handleCmd (server : Socket) (cmd : Command) : IO Unit := do
   let msg : String := toString <| toJson cmd
-  let _nBytes ← sock.send msg.toUTF8
+  let _nBytes ← server.send msg.toUTF8
 
+  -- TODO: need a way to recv with timeout in case of daemon failure
+  -- TODO: think more about receive buffer size.
+  --   in particular, list response can be arbitrarily long
+  --   we should handle that correctly without allocating such a large
+  --   buffer in the common case
+  let respStr ← String.fromUTF8! <$> server.recv 10240
+  let resp? : Except String CmdResponse :=
+    fromJson? =<< Lean.Json.parse respStr
+  let .ok resp := resp? | do
+    IO.println "Failed to parse message from server:"
+    println! "    \"{respStr}\""
+    IO.Process.exit 1
+
+  -- Handle response
   match cmd with
-  | Command.addTimer _ => pure ()
-  | Command.cancelTimer _ => pure ()
+  | Command.addTimer timer => do
+    let .ok := resp | unexpectedResponse respStr
+    println! "Timer created for {timer.formatColonSeparated}."
+  | Command.cancelTimer timerId => do
+    match resp with
+    | .ok =>
+      println! "Timer #{repr timerId} cancelled."
+    | .timerNotFound timerId => do
+      println! "Timer with id \"{repr timerId}\" not found."
+      IO.Process.exit 1
+    | _ => unexpectedResponse respStr
   | Command.list => do
-    let resp ← sock.recv 10240
-
-    let timers? : Except String (List Timer) := do
-      let json ← Lean.Json.parse <| String.fromUTF8! resp
-      fromJson? json
-
-    let .ok timers := timers? | do
-      println! "failed to parse message from server. exiting"
-
+    let .list timers := resp | unexpectedResponse respStr
     let now ← IO.monoMsNow
-    IO.println <| showTimers timers now
+    IO.println <| showTimers timers.data now
+
+  where
+  unexpectedResponse {α : Type} (resp : String) : IO α := do
+    IO.println "Unexpected response from server:"
+    println! "    \"{resp}\""
+    IO.Process.exit 1
 
 def usage : String := unlines [
     "Usage:",

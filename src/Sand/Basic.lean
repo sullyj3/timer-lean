@@ -1,7 +1,7 @@
 import Lean
 import Socket
 
-open Lean (ToJson FromJson)
+open Lean (ToJson FromJson toJson)
 open System (FilePath)
 
 namespace Sand
@@ -91,5 +91,18 @@ inductive Command
   | list
   | cancelTimer (which : TimerId)
   deriving Repr, ToJson, FromJson
+
+-- responses to commands sent from server to client
+inductive CmdResponse
+  -- acknowledgement of `addTimer` and `cancelTimer`
+  | ok
+  | list (timers : Array Timer)
+  -- response to `cancelTimer` of nonexistent `TimerId`
+  | timerNotFound (which : TimerId)
+  deriving ToJson, FromJson
+
+def CmdResponse.serialize : CmdResponse → ByteArray :=
+  String.toUTF8 ∘ toString ∘ toJson
+
 
 end Sand
