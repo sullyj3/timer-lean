@@ -29,10 +29,17 @@ def addTimer (state : SanddState) (due : Nat) : BaseIO TimerId := do
   state.timers.atomically <| modify (·.insert id timer)
   return id
 
+
 inductive TimerOpError
   | notFound
 
 def TimerOpResult α := Except TimerOpError α
+
+def pauseTimer (state : SanddState) (timerId : TimerId)
+  : BaseIO (TimerOpResult Unit) := sorry
+
+def resumeTimer (state : SanddState) (timerId : TimerId)
+  : BaseIO (TimerOpResult Unit) := sorry
 
 def removeTimer (state : SanddState) (id : TimerId) : BaseIO (TimerOpResult Unit) := do
   let timers ← state.timers.atomically get
@@ -128,6 +135,8 @@ def handleClientCmd
   | .list => do
     let timers ← state.timers.atomically get
     _ ← client.send <| (CmdResponse.list timers.values).serialize
+  | .pause which => sorry
+  | .resume which => sorry
 
 def handleClient
   (client : Socket)

@@ -90,6 +90,8 @@ inductive Command
   | addTimer (duration : Duration)
   | list
   | cancelTimer (which : TimerId)
+  | pause (which : TimerId)
+  | resume (which : TimerId)
   deriving Repr, ToJson, FromJson
 
 -- responses to commands sent from server to client

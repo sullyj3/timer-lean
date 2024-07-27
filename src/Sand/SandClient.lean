@@ -173,6 +173,8 @@ def handleCmd (server : Socket) (cmd : Command) : IO Unit := do
     let .list timers := resp | unexpectedResponse respStr
     let now ← IO.monoMsNow
     IO.println <| showTimers timers.data now
+  | Command.pause which => sorry
+  | Command.resume which => sorry
 
   where
   unexpectedResponse {α : Type} (resp : String) : IO α := do
