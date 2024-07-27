@@ -1,25 +1,29 @@
 import «Sand».Basic
+import Batteries
 
 open System (FilePath)
 open Lean (Json toJson fromJson?)
+
+open Batteries (HashMap)
+
 open Sand (Timer TimerId Command Duration)
 
 structure SanddState where
   nextTimerId : IO.Mutex Nat
-  timers : IO.Mutex (Array Timer) -- TODO switch to hashmap or something
+  timers : IO.Mutex (HashMap Nat Timer) -- TODO switch to hashmap or something
 
 namespace SanddState
 
 def initial : IO SanddState := do
   return {
     nextTimerId := (← IO.Mutex.new 1),
-    timers := (← IO.Mutex.new #[])
+    timers := (← IO.Mutex.new ∅)
   }
 
 def addTimer (state : SanddState) (due : Nat) : BaseIO TimerId := do
   let id : TimerId ← state.nextTimerId.atomically (getModify Nat.succ)
   let timer : Timer := ⟨id, due⟩
-  state.timers.atomically <| modify (·.push timer)
+  state.timers.atomically <| modify (·.insert id timer)
   return id
 
 inductive RemoveTimerResult
@@ -28,16 +32,17 @@ inductive RemoveTimerResult
 
 def removeTimer (state : SanddState) (id : TimerId) : BaseIO RemoveTimerResult := do
   let timers ← state.timers.atomically get
-  match timers.findIdx? (λ timer ↦ timer.id == id) with
-  | some idx => do
-    state.timers.atomically <| set <| timers.eraseIdx idx
+  -- match timers.findIdx? (λ timer ↦ timer.id == id) with
+  match timers.find? id with
+  | some _ => do
+    state.timers.atomically <| set <| timers.erase id
     pure .removed
   | none => do
     pure .notFound
 
 def timerExists (state : SanddState) (id : TimerId) : BaseIO Bool := do
   let timers ← state.timers.atomically get
-  return timers.find? (·.id == id) |>.isSome
+  return timers.find? id |>.isSome
 
 end SanddState
 
@@ -97,15 +102,20 @@ def addTimer (state : SanddState) (startTime : Nat) (duration : Duration) : IO U
 
   -- TODO: problem with this approach - time spent suspended is not counted.
   -- eg if I set a 1 minute timer, then suspend at 30s, the timer will
-  -- go off 30s after wake.
+  -- go off 30s after wake.{}
   let timerDue := startTime + duration.millis
 
   let timerId ← state.addTimer timerDue
   countdown state timerId timerDue
 
 
-def serializeTimers (timers : Array Timer) : ByteArray :=
-  String.toUTF8 <| toString <| toJson timers
+def serializeTimers (timers : HashMap Nat Timer) : ByteArray :=
+  timers
+    |>.toArray
+    |>.map Prod.snd -- get values
+    |> toJson
+    |> toString
+    |>.toUTF8
 
 def list (state : SanddState) (client : Socket) : IO Unit := do
   let timers ← state.timers.atomically get
