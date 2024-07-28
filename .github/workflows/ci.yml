@@ -15,11 +15,11 @@ jobs:
           auto-config: "false"
           use-mathlib-cache: "false"
           build: "true"
-      - name: Create package
-        run: |
-          ./create_release.sh
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4.3.4
-        with:
-          name: sand
-          path: release/sand-x86_64-linux.tar.zst
+      # - name: Create package
+      #   run: |
+      #     ./create_release.sh
+      # - name: Upload artifact
+      #   uses: actions/upload-artifact@v4.3.4
+      #   with:
+      #     name: sand
+      #     path: release/sand-x86_64-linux.tar.zst
