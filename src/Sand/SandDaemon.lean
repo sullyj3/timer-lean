@@ -52,43 +52,42 @@ structure SanddState where
   timers : IO.Mutex (HashMap Nat (Timer × TimerState))
 
 def SanddState.removeTimer (state : SanddState) (id : TimerId) : BaseIO (TimerOpResult Unit) := do
-  let timers ← state.timers.atomically get
-  -- match timers.findIdx? (λ timer ↦ timer.id == id) with
-  match timers.find? id with
-  | some _ => do
-    -- TODO cancel the task instead.
-    state.timers.atomically <| set <| timers.erase id
-    pure <| .ok ()
-  | none => do
-    pure <| .error .notFound
+  state.timers.atomically do
+    let timers ← get
+    match timers.find? id with
+    | some (_, timerstate) => do
+      if let .running task := timerstate then do
+        IO.cancel task
+      set <| timers.erase id
+      pure <| .ok ()
+    | none => do
+      pure <| .error .notFound
 
 def SanddState.timerExists (state : SanddState) (id : TimerId) : BaseIO Bool := do
   let timers ← state.timers.atomically get
   return timers.find? id |>.isSome
 
 -- IO.sleep isn't guaranteed to be on time, I find it's usually about 10ms late
--- this strategy aims to be exactly on time (to the millisecond), while
--- avoiding a long busy wait which consumes too much cpu.
+-- Therefore, we repeatedly sleep while there's enough time left that we can
+-- afford to be inaccurate, and spin once we're close to the due time. This
+-- strategy aims to be exactly on time (to the millisecond), while avoiding a
+-- long busy wait which consumes too much cpu.
 partial def countdown
   (state : SanddState) (id : TimerId) (due : Nat) : IO Unit := loop
   where
   loop := do
     let remaining_ms := due - (← IO.monoMsNow)
+    -- This task will be cancelled if the timer is cancelled or paused.
+    -- in case of resumed, a new separate task will be spawned.
+    if ← IO.checkCanceled then return
     if remaining_ms == 0 then
       _ ← Sand.notify s!"Time's up!"
       playTimerSound
       _ ← state.removeTimer id
       return
-
-    -- We repeatedly sleep while there's enough time left that we can afford to
-    -- be inaccurate, and spin once we're close to the due time.
     if remaining_ms > 30 then
       IO.sleep (remaining_ms/2).toUInt32
-
-    -- continue counting down if the timer hasn't been canceled
-    -- TODO check for task cancellation instead
-    if (← state.timerExists id) then
-      loop
+    loop
 
 def SanddState.initial : IO SanddState := do
   return {
