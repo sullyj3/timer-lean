@@ -2,26 +2,19 @@ import «Sand».Basic
 import Batteries
 
 open System (FilePath)
-open Lean (Json toJson fromJson?)
+open Lean (Json ToJson FromJson toJson fromJson?)
 
 open Batteries (HashMap)
 
-open Sand (Timer TimerId Command CmdResponse Duration)
-
-def Batteries.HashMap.values [BEq α] [Hashable α] (hashMap : HashMap α β) : Array β :=
-  hashMap.toArray |>.map Prod.snd
+open Sand (Timer TimerId TimerState TimerInfoForClient Command CmdResponse Duration)
 
 inductive TimerOpError
   | notFound
+  -- returned when calling pause on a paused timer, or resume on a running timer
+  | noop
+  deriving Repr
 
 def TimerOpResult α := Except TimerOpError α
-
-def SanddState.pauseTimer (state : SanddState) (timerId : TimerId)
-  : BaseIO (TimerOpResult Unit) := sorry
-
-def SanddState.resumeTimer (state : SanddState) (timerId : TimerId)
-  : BaseIO (TimerOpResult Unit) := sorry
-
 
 private def xdgDataHome : OptionT BaseIO FilePath :=
   xdgDataHomeEnv <|> dataHomeDefault
@@ -43,13 +36,25 @@ def playTimerSound : IO Unit := do
   -- todo choose most appropriate media player, possibly record a dependency for package
   _ ← Sand.runCmdSimple "paplay" #[soundPath.toString]
 
-inductive TimerState
-  | paused (remaining : Duration)
-  | running (task : Task (Except IO.Error Unit))
-
 structure SanddState where
   nextTimerId : IO.Mutex Nat
   timers : IO.Mutex (HashMap Nat (Timer × TimerState))
+
+def SanddState.pauseTimer
+  (state : SanddState) (timerId : TimerId) (clientConnectedTime : Nat)
+  : BaseIO (TimerOpResult Unit) := state.timers.atomically do
+  let timers ← get
+  let some (timer, timerstate) := timers.find? timerId | do
+    return .error .notFound
+  match timerstate with
+  | .paused _ => return .error .noop
+  | .running task => do
+    IO.cancel task
+    let remaining := ⟨timer.due - clientConnectedTime⟩
+    let newTimerstate := .paused remaining
+    let newTimers := timers.insert timerId (timer, newTimerstate)
+    set newTimers
+    return .ok ()
 
 def SanddState.removeTimer (state : SanddState) (id : TimerId) : BaseIO (TimerOpResult Unit) := do
   state.timers.atomically do
@@ -88,6 +93,22 @@ partial def countdown
     if remaining_ms > 30 then
       IO.sleep (remaining_ms/2).toUInt32
     loop
+
+def SanddState.resumeTimer
+  (state : SanddState) (timerId : TimerId) (clientConnectedTime : Nat)
+  : BaseIO (TimerOpResult Unit) := state.timers.atomically do
+  let timers ← get
+  let some (timer, timerstate) := timers.find? timerId | do
+    return .error .notFound
+  match timerstate with
+  | .running _ => return .error .noop
+  | .paused remaining => do
+    let newDueTime := clientConnectedTime + remaining.millis
+    let countdownTask ← IO.asTask <| countdown state timerId newDueTime
+    let newTimerstate := .running countdownTask
+    let newTimer := {timer with due := newDueTime}
+    set <| timers.insert timerId (newTimer, newTimerstate)
+    return .ok ()
 
 def SanddState.initial : IO SanddState := do
   return {
@@ -130,13 +151,35 @@ def handleClientCmd
     match ← state.removeTimer which with
     | .error .notFound => do
       _ ← client.send <| (CmdResponse.timerNotFound which).serialize
+    -- TODO yuck
+    | .error err@(.noop) => do
+      IO.eprintln s!"BUG: Unexpected error \"{repr err}\" from removeTimer."
     | .ok () => do
       _ ← client.send CmdResponse.ok.serialize
   | .list => do
     let timers ← state.timers.atomically get
-    _ ← client.send <| (CmdResponse.list <| timers.values.map Prod.fst).serialize
-  | .pause which => sorry
-  | .resume which => sorry
+
+    _ ← client.send <| (CmdResponse.list <| Sand.timersForClient timers).serialize
+
+  -- TODO factor repetition
+  | .pause which => do
+    let result ← state.pauseTimer which clientConnectedTime
+    match result with
+    | .ok () => do
+      _ ← client.send CmdResponse.ok.serialize
+    | .error .notFound => do
+      _ ← client.send (CmdResponse.timerNotFound which).serialize
+    | .error .noop => do
+      _ ← client.send CmdResponse.noop.serialize
+  | .resume which => do
+    let result ← state.resumeTimer which clientConnectedTime
+    match result with
+    | .ok () => do
+      _ ← client.send CmdResponse.ok.serialize
+    | .error .notFound => do
+      _ ← client.send (CmdResponse.timerNotFound which).serialize
+    | .error .noop => do
+      _ ← client.send CmdResponse.noop.serialize
 
 def handleClient
   (client : Socket)
