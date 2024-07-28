@@ -12,10 +12,11 @@ def Batteries.HashMap.values [BEq α] [Hashable α] (hashMap : HashMap α β) : 
 
 namespace Sand
 
-def TimerId := Nat
-  deriving BEq, Repr, ToJson, FromJson
+structure TimerId where
+  id : Nat
+  deriving BEq, Repr, ToJson, FromJson, Hashable
 
-def TimerId.fromNat (n : Nat) : TimerId := n
+def TimerId.fromNat (n : Nat) : TimerId := ⟨n⟩
 
 structure Timer where
   id : TimerId
@@ -42,7 +43,7 @@ structure TimerInfoForClient where
   deriving ToJson, FromJson
 
 def timersForClient
-  (timers : HashMap Nat (Timer × TimerState))
+  (timers : HashMap TimerId (Timer × TimerState))
   : Array TimerInfoForClient :=
   timers.values.map λ (timer, timerstate) ↦
     let state : TimerStateForClient := match timerstate with

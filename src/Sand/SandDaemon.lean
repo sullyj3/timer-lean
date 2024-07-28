@@ -39,7 +39,7 @@ def playTimerSound : IO Unit := do
 
 structure SanddState where
   nextTimerId : IO.Mutex Nat
-  timers : IO.Mutex (HashMap Nat (Timer × TimerState))
+  timers : IO.Mutex (HashMap TimerId (Timer × TimerState))
 
 def SanddState.pauseTimer
   (state : SanddState) (timerId : TimerId) (clientConnectedTime : Nat)
@@ -118,7 +118,8 @@ def SanddState.initial : IO SanddState := do
   }
 
 def SanddState.addTimer (state : SanddState) (due : Nat) : BaseIO Unit := do
-  let id : TimerId ← state.nextTimerId.atomically (getModify Nat.succ)
+  let id : TimerId ←
+    TimerId.mk <$> state.nextTimerId.atomically (getModify Nat.succ)
   let timer : Timer := ⟨id, due⟩
   let countdownTask ← IO.asTask <| countdown state id due
   state.timers.atomically <| modify (·.insert id (timer, .running countdownTask))
