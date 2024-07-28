@@ -1,5 +1,6 @@
 import «Sand».Basic
 import «Sand».Time
+import «Sand».Message
 import Batteries
 
 open System (FilePath)
@@ -18,6 +19,7 @@ inductive TimerOpError
   | noop
   deriving Repr
 
+-- TODO this should maybe be subsumed by CmdResponse?
 def TimerOpResult α := Except TimerOpError α
 
 private def xdgDataHome : OptionT BaseIO FilePath :=

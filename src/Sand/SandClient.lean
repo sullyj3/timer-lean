@@ -1,6 +1,7 @@
 import Socket
 import «Sand».Basic
 import «Sand».Time
+import «Sand».Message
 
 open Sand (Timer TimerId TimerInfoForClient Command CmdResponse Duration
   Moment instHsubMoments)
