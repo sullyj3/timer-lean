@@ -2,7 +2,8 @@ import Socket
 import «Sand».Basic
 import «Sand».Time
 
-open Sand (Timer TimerId TimerInfoForClient Command CmdResponse Duration)
+open Sand (Timer TimerId TimerInfoForClient Command CmdResponse Duration
+  Moment instHsubMoments)
 
 def withUnixSocket path (action : Socket → IO a) := do
   let addr := Socket.SockAddrUnix.unix path
@@ -132,18 +133,18 @@ def parseArgs : List String → Option Command
 
 def unlines := String.intercalate "\n"
 
-def showTimer (now : Nat) : TimerInfoForClient → String
+def showTimer (now : Moment) : TimerInfoForClient → String
   | {id, state} =>
     match state with
     | .running due =>
-      let remaining : Duration := ⟨due - now⟩
+      let remaining : Duration := due - now
       let formatted := remaining.formatColonSeparated
       s!"#{repr id.id} | {formatted} remaining"
     | .paused remaining =>
       let formatted := remaining.formatColonSeparated
       s!"#{repr id.id} | {formatted} remaining (PAUSED)"
 
-def showTimers (timers : List TimerInfoForClient) (now : Nat) : String :=
+def showTimers (timers : List TimerInfoForClient) (now : Moment) : String :=
   if timers.isEmpty then
     "No running timers."
   else
@@ -179,7 +180,7 @@ def handleCmd (server : Socket) (cmd : Command) : IO Unit := do
     | _ => unexpectedResponse respStr
   | Command.list => do
     let .list timers := resp | unexpectedResponse respStr
-    let now ← IO.monoMsNow
+    let now ← Moment.mk <$> IO.monoMsNow
     IO.println <| showTimers timers.data now
   | Command.pause which => match resp with
     | .ok =>
