@@ -2,52 +2,19 @@ import «Sand».Basic
 import Batteries
 
 open System (FilePath)
-open Lean (Json toJson fromJson?)
+open Lean (Json ToJson FromJson toJson fromJson?)
 
 open Batteries (HashMap)
 
-open Sand (Timer TimerId Command CmdResponse Duration)
+open Sand (Timer TimerId TimerState TimerInfoForClient Command CmdResponse Duration)
 
-def Batteries.HashMap.values [BEq α] [Hashable α] (hashMap : HashMap α β) : Array β :=
-  hashMap.toArray |>.map Prod.snd
-
-structure SanddState where
-  nextTimerId : IO.Mutex Nat
-  timers : IO.Mutex (HashMap Nat Timer)
-
-namespace SanddState
-
-def initial : IO SanddState := do
-  return {
-    nextTimerId := (← IO.Mutex.new 1),
-    timers := (← IO.Mutex.new ∅)
-  }
-
-def addTimer (state : SanddState) (due : Nat) : BaseIO TimerId := do
-  let id : TimerId ← state.nextTimerId.atomically (getModify Nat.succ)
-  let timer : Timer := ⟨id, due⟩
-  state.timers.atomically <| modify (·.insert id timer)
-  return id
-
-inductive RemoveTimerResult
-  | removed
+inductive TimerOpError
   | notFound
+  -- returned when calling pause on a paused timer, or resume on a running timer
+  | noop
+  deriving Repr
 
-def removeTimer (state : SanddState) (id : TimerId) : BaseIO RemoveTimerResult := do
-  let timers ← state.timers.atomically get
-  -- match timers.findIdx? (λ timer ↦ timer.id == id) with
-  match timers.find? id with
-  | some _ => do
-    state.timers.atomically <| set <| timers.erase id
-    pure .removed
-  | none => do
-    pure .notFound
-
-def timerExists (state : SanddState) (id : TimerId) : BaseIO Bool := do
-  let timers ← state.timers.atomically get
-  return timers.find? id |>.isSome
-
-end SanddState
+def TimerOpResult α := Except TimerOpError α
 
 private def xdgDataHome : OptionT BaseIO FilePath :=
   xdgDataHomeEnv <|> dataHomeDefault
@@ -69,32 +36,95 @@ def playTimerSound : IO Unit := do
   -- todo choose most appropriate media player, possibly record a dependency for package
   _ ← Sand.runCmdSimple "paplay" #[soundPath.toString]
 
-partial def busyWaitTil (due : Nat) : IO Unit := do
-  while (← IO.monoMsNow) < due do
-    pure ()
+structure SanddState where
+  nextTimerId : IO.Mutex Nat
+  timers : IO.Mutex (HashMap Nat (Timer × TimerState))
+
+def SanddState.pauseTimer
+  (state : SanddState) (timerId : TimerId) (clientConnectedTime : Nat)
+  : BaseIO (TimerOpResult Unit) := state.timers.atomically do
+  let timers ← get
+  let some (timer, timerstate) := timers.find? timerId | do
+    return .error .notFound
+  match timerstate with
+  | .paused _ => return .error .noop
+  | .running task => do
+    IO.cancel task
+    let remaining := ⟨timer.due - clientConnectedTime⟩
+    let newTimerstate := .paused remaining
+    let newTimers := timers.insert timerId (timer, newTimerstate)
+    set newTimers
+    return .ok ()
+
+def SanddState.removeTimer (state : SanddState) (id : TimerId) : BaseIO (TimerOpResult Unit) := do
+  state.timers.atomically do
+    let timers ← get
+    match timers.find? id with
+    | some (_, timerstate) => do
+      if let .running task := timerstate then do
+        IO.cancel task
+      set <| timers.erase id
+      pure <| .ok ()
+    | none => do
+      pure <| .error .notFound
+
+def SanddState.timerExists (state : SanddState) (id : TimerId) : BaseIO Bool := do
+  let timers ← state.timers.atomically get
+  return timers.find? id |>.isSome
 
 -- IO.sleep isn't guaranteed to be on time, I find it's usually about 10ms late
--- this strategy aims to be exactly on time (to the millisecond), while
--- avoiding a long busy wait which consumes too much cpu.
+-- Therefore, we repeatedly sleep while there's enough time left that we can
+-- afford to be inaccurate, and spin once we're close to the due time. This
+-- strategy aims to be exactly on time (to the millisecond), while avoiding a
+-- long busy wait which consumes too much cpu.
 partial def countdown
   (state : SanddState) (id : TimerId) (due : Nat) : IO Unit := loop
   where
   loop := do
     let remaining_ms := due - (← IO.monoMsNow)
+    -- This task will be cancelled if the timer is cancelled or paused.
+    -- in case of resumed, a new separate task will be spawned.
+    if ← IO.checkCanceled then return
     if remaining_ms == 0 then
       _ ← Sand.notify s!"Time's up!"
       playTimerSound
       _ ← state.removeTimer id
       return
-
-    -- We repeatedly sleep while there's enough time left that we can afford to
-    -- be inaccurate, and spin once we're close to the due time.
     if remaining_ms > 30 then
       IO.sleep (remaining_ms/2).toUInt32
+    loop
 
-    -- continue counting down if the timer hasn't been canceled
-    if (← state.timerExists id) then
-      loop
+def SanddState.resumeTimer
+  (state : SanddState) (timerId : TimerId) (clientConnectedTime : Nat)
+  : BaseIO (TimerOpResult Unit) := state.timers.atomically do
+  let timers ← get
+  let some (timer, timerstate) := timers.find? timerId | do
+    return .error .notFound
+  match timerstate with
+  | .running _ => return .error .noop
+  | .paused remaining => do
+    let newDueTime := clientConnectedTime + remaining.millis
+    let countdownTask ← IO.asTask <| countdown state timerId newDueTime
+    let newTimerstate := .running countdownTask
+    let newTimer := {timer with due := newDueTime}
+    set <| timers.insert timerId (newTimer, newTimerstate)
+    return .ok ()
+
+def SanddState.initial : IO SanddState := do
+  return {
+    nextTimerId := (← IO.Mutex.new 1),
+    timers := (← IO.Mutex.new ∅)
+  }
+
+def SanddState.addTimer (state : SanddState) (due : Nat) : BaseIO Unit := do
+  let id : TimerId ← state.nextTimerId.atomically (getModify Nat.succ)
+  let timer : Timer := ⟨id, due⟩
+  let countdownTask ← IO.asTask <| countdown state id due
+  state.timers.atomically <| modify (·.insert id (timer, .running countdownTask))
+
+partial def busyWaitTil (due : Nat) : IO Unit := do
+  while (← IO.monoMsNow) < due do
+    pure ()
 
 def addTimer (state : SanddState) (startTime : Nat) (duration : Duration) : IO Unit := do
   -- run timer
@@ -108,8 +138,7 @@ def addTimer (state : SanddState) (startTime : Nat) (duration : Duration) : IO U
   -- go off 30s after wake.{}
   let timerDue := startTime + duration.millis
 
-  let timerId ← state.addTimer timerDue
-  countdown state timerId timerDue
+  state.addTimer timerDue
 
 def handleClientCmd
   (client : Socket) (state : SanddState) (clientConnectedTime : Nat)
@@ -120,13 +149,37 @@ def handleClientCmd
     _ ← client.send CmdResponse.ok.serialize
   | .cancelTimer which => do
     match ← state.removeTimer which with
-    | .notFound => do
+    | .error .notFound => do
       _ ← client.send <| (CmdResponse.timerNotFound which).serialize
-    | .removed => do
+    -- TODO yuck
+    | .error err@(.noop) => do
+      IO.eprintln s!"BUG: Unexpected error \"{repr err}\" from removeTimer."
+    | .ok () => do
       _ ← client.send CmdResponse.ok.serialize
   | .list => do
     let timers ← state.timers.atomically get
-    _ ← client.send <| (CmdResponse.list timers.values).serialize
+
+    _ ← client.send <| (CmdResponse.list <| Sand.timersForClient timers).serialize
+
+  -- TODO factor repetition
+  | .pause which => do
+    let result ← state.pauseTimer which clientConnectedTime
+    match result with
+    | .ok () => do
+      _ ← client.send CmdResponse.ok.serialize
+    | .error .notFound => do
+      _ ← client.send (CmdResponse.timerNotFound which).serialize
+    | .error .noop => do
+      _ ← client.send CmdResponse.noop.serialize
+  | .resume which => do
+    let result ← state.resumeTimer which clientConnectedTime
+    match result with
+    | .ok () => do
+      _ ← client.send CmdResponse.ok.serialize
+    | .error .notFound => do
+      _ ← client.send (CmdResponse.timerNotFound which).serialize
+    | .error .noop => do
+      _ ← client.send CmdResponse.noop.serialize
 
 def handleClient
   (client : Socket)

@@ -1,7 +1,7 @@
 import Socket
 import «Sand».Basic
 
-open Sand (Timer Command CmdResponse Duration)
+open Sand (Timer TimerId TimerInfoForClient Command CmdResponse Duration)
 
 def withUnixSocket path (action : Socket → IO a) := do
   let addr := Socket.SockAddrUnix.unix path
@@ -119,20 +119,30 @@ def parseArgs : List String → Option Command
   | ["cancel", idStr] => do
     let timerId ← idStr.toNat?
     return .cancelTimer timerId
+  | ["pause", idStr] => do
+    let timerId ← idStr.toNat?
+    return .pause timerId
+  | ["resume", idStr] => do
+    let timerId ← idStr.toNat?
+    return .resume timerId
   | args => do
     let duration ← parseTimer args
     return .addTimer duration
 
 def unlines := String.intercalate "\n"
 
-def showTimer (now : Nat) : Timer → String
-  | {id, due} =>
-    let remaining : Duration := ⟨due - now⟩
-    let formatted := remaining.formatColonSeparated
+def showTimer (now : Nat) : TimerInfoForClient → String
+  | {id, state} =>
+    match state with
+    | .running due =>
+      let remaining : Duration := ⟨due - now⟩
+      let formatted := remaining.formatColonSeparated
+      s!"#{repr id} | {formatted} remaining"
+    | .paused remaining =>
+      let formatted := remaining.formatColonSeparated
+      s!"#{repr id} | {formatted} remaining (PAUSED)"
 
-    s!"#{repr id} | {formatted} remaining"
-
-def showTimers (timers : List Timer) (now : Nat) : String :=
+def showTimers (timers : List TimerInfoForClient) (now : Nat) : String :=
   if timers.isEmpty then
     "No running timers."
   else
@@ -161,23 +171,38 @@ def handleCmd (server : Socket) (cmd : Command) : IO Unit := do
   | Command.addTimer timer => do
     let .ok := resp | unexpectedResponse respStr
     println! "Timer created for {timer.formatColonSeparated}."
-  | Command.cancelTimer timerId => do
-    match resp with
+  | Command.cancelTimer timerId => match resp with
     | .ok =>
       println! "Timer #{repr timerId} cancelled."
-    | .timerNotFound timerId => do
-      println! "Timer with id \"{repr timerId}\" not found."
-      IO.Process.exit 1
+    | .timerNotFound timerId => timerNotFound timerId
     | _ => unexpectedResponse respStr
   | Command.list => do
     let .list timers := resp | unexpectedResponse respStr
     let now ← IO.monoMsNow
     IO.println <| showTimers timers.data now
+  | Command.pause which => match resp with
+    | .ok =>
+      println! "Timer #{repr which} paused."
+    | .timerNotFound timerId => timerNotFound timerId
+    | .noop =>
+      println! "Timer {repr which} is already paused."
+    | _ => unexpectedResponse respStr
+  | Command.resume which => match resp with
+    | .ok =>
+      println! "Timer #{repr which} resumed."
+    | .timerNotFound timerId => timerNotFound timerId
+    | .noop =>
+      println! "Timer {repr which} is already running."
+    | _ => unexpectedResponse respStr
 
   where
   unexpectedResponse {α : Type} (resp : String) : IO α := do
     IO.println "Unexpected response from server:"
     println! "    \"{resp}\""
+    IO.Process.exit 1
+
+  timerNotFound (timerId : TimerId) := do
+    println! "Timer with id \"{repr timerId}\" not found."
     IO.Process.exit 1
 
 def usage : String := unlines [
