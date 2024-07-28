@@ -4,12 +4,22 @@ open Lean (ToJson FromJson toJson)
 
 namespace Sand
 
+structure Moment where
+  millis : Nat
+  deriving Repr, ToJson, FromJson, BEq
+
 structure Duration where
   millis : Nat
   deriving Repr, ToJson, FromJson, BEq
 
 instance : Add Duration where
   add d1 d2 := { millis := d1.millis + d2.millis }
+
+instance : HAdd Moment Duration Moment where
+  hAdd mom dur := {millis := mom.millis + dur.millis : Moment}
+
+instance instHsubMoments : HSub Moment Moment Duration where
+  hSub m1 m2 := { millis := m1.millis - m2.millis }
 
 namespace Duration
 

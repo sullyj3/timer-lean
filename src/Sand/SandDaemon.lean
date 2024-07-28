@@ -7,7 +7,10 @@ open Lean (Json ToJson FromJson toJson fromJson?)
 
 open Batteries (HashMap)
 
-open Sand (Timer TimerId TimerState TimerInfoForClient Command CmdResponse Duration)
+open Sand (
+  Timer TimerId TimerState TimerInfoForClient Command CmdResponse Duration
+  Moment
+  )
 
 inductive TimerOpError
   | notFound
@@ -39,10 +42,10 @@ def playTimerSound : IO Unit := do
 
 structure SanddState where
   nextTimerId : IO.Mutex Nat
-  timers : IO.Mutex (HashMap Nat (Timer × TimerState))
+  timers : IO.Mutex (HashMap TimerId (Timer × TimerState))
 
 def SanddState.pauseTimer
-  (state : SanddState) (timerId : TimerId) (clientConnectedTime : Nat)
+  (state : SanddState) (timerId : TimerId) (clientConnectedTime : Moment)
   : BaseIO (TimerOpResult Unit) := state.timers.atomically do
   let timers ← get
   let some (timer, timerstate) := timers.find? timerId | do
@@ -51,7 +54,7 @@ def SanddState.pauseTimer
   | .paused _ => return .error .noop
   | .running task => do
     IO.cancel task
-    let remaining := ⟨timer.due - clientConnectedTime⟩
+    let remaining : Duration := timer.due - clientConnectedTime
     let newTimerstate := .paused remaining
     let newTimers := timers.insert timerId (timer, newTimerstate)
     set newTimers
@@ -79,24 +82,25 @@ def SanddState.timerExists (state : SanddState) (id : TimerId) : BaseIO Bool := 
 -- strategy aims to be exactly on time (to the millisecond), while avoiding a
 -- long busy wait which consumes too much cpu.
 partial def countdown
-  (state : SanddState) (id : TimerId) (due : Nat) : IO Unit := loop
+  (state : SanddState) (id : TimerId) (due : Moment) : IO Unit := loop
   where
   loop := do
-    let remaining_ms := due - (← IO.monoMsNow)
+    let now ← Moment.mk <$> IO.monoMsNow
+    let remaining := due - now
     -- This task will be cancelled if the timer is cancelled or paused.
     -- in case of resumed, a new separate task will be spawned.
     if ← IO.checkCanceled then return
-    if remaining_ms == 0 then
+    if remaining.millis == 0 then
       _ ← Sand.notify s!"Time's up!"
       playTimerSound
       _ ← state.removeTimer id
       return
-    if remaining_ms > 30 then
-      IO.sleep (remaining_ms/2).toUInt32
+    if remaining.millis > 30 then
+      IO.sleep (remaining.millis/2).toUInt32
     loop
 
 def SanddState.resumeTimer
-  (state : SanddState) (timerId : TimerId) (clientConnectedTime : Nat)
+  (state : SanddState) (timerId : TimerId) (clientConnectedTime : Moment)
   : BaseIO (TimerOpResult Unit) := state.timers.atomically do
   let timers ← get
   let some (timer, timerstate) := timers.find? timerId | do
@@ -104,7 +108,7 @@ def SanddState.resumeTimer
   match timerstate with
   | .running _ => return .error .noop
   | .paused remaining => do
-    let newDueTime := clientConnectedTime + remaining.millis
+    let newDueTime : Moment := clientConnectedTime + remaining
     let countdownTask ← IO.asTask <| countdown state timerId newDueTime
     let newTimerstate := .running countdownTask
     let newTimer := {timer with due := newDueTime}
@@ -117,7 +121,7 @@ def SanddState.initial : IO SanddState := do
     timers := (← IO.Mutex.new ∅)
   }
 
-def SanddState.addTimer (state : SanddState) (due : Nat) : BaseIO Unit := do
+def SanddState.addTimer (state : SanddState) (due : Moment) : BaseIO Unit := do
   let id : TimerId ← state.nextTimerId.atomically (getModify Nat.succ)
   let timer : Timer := ⟨id, due⟩
   let countdownTask ← IO.asTask <| countdown state id due
@@ -127,7 +131,7 @@ partial def busyWaitTil (due : Nat) : IO Unit := do
   while (← IO.monoMsNow) < due do
     pure ()
 
-def addTimer (state : SanddState) (startTime : Nat) (duration : Duration) : IO Unit := do
+def addTimer (state : SanddState) (startTime : Moment) (duration : Duration) : IO Unit := do
   -- run timer
   let msg := s!"Starting timer for {duration.formatColonSeparated}"
 
@@ -137,12 +141,12 @@ def addTimer (state : SanddState) (startTime : Nat) (duration : Duration) : IO U
   -- TODO: problem with this approach - time spent suspended is not counted.
   -- eg if I set a 1 minute timer, then suspend at 30s, the timer will
   -- go off 30s after wake.{}
-  let timerDue := startTime + duration.millis
+  let timerDue := startTime + duration
 
   state.addTimer timerDue
 
 def handleClientCmd
-  (client : Socket) (state : SanddState) (clientConnectedTime : Nat)
+  (client : Socket) (state : SanddState) (clientConnectedTime : Moment)
   : Command → IO Unit
 
   | .addTimer durationMs => do
@@ -190,7 +194,7 @@ def handleClient
   -- IO.monoMsNow is an ffi call to `std::chrono::steady_clock::now()`
   -- Technically this clock is not guaranteed to be the same between
   -- processes, but it seems to be in practice on linux
-  let clientConnectedTime ← IO.monoMsNow
+  let clientConnectedTime ← Moment.mk <$> IO.monoMsNow
 
   -- receive and parse message
   let bytes ← client.recv (maxBytes := 1024)

@@ -6,6 +6,7 @@ import «Sand».Time
 open Lean (ToJson FromJson toJson)
 open System (FilePath)
 open Batteries (HashMap)
+open Sand (Moment)
 
 def Batteries.HashMap.values [BEq α] [Hashable α] (hashMap : HashMap α β) : Array β :=
   hashMap.toArray |>.map Prod.snd
@@ -13,13 +14,13 @@ def Batteries.HashMap.values [BEq α] [Hashable α] (hashMap : HashMap α β) : 
 namespace Sand
 
 def TimerId := Nat
-  deriving BEq, Repr, ToJson, FromJson
+  deriving BEq, Repr, ToJson, FromJson, Hashable
 
 def TimerId.fromNat (n : Nat) : TimerId := n
 
 structure Timer where
   id : TimerId
-  due : Nat
+  due : Moment
   deriving Repr, ToJson, FromJson
 
 -- TODO this data model needs improvement
@@ -28,11 +29,10 @@ inductive TimerState
   | paused (remaining : Duration)
   | running (task : Task (Except IO.Error Unit))
 
-
 -- TODO filthy hack.
 -- revisit after reworking timer data model
 inductive TimerStateForClient
-  | running (due : Nat)
+  | running (due : Moment)
   | paused (remaining : Duration)
   deriving ToJson, FromJson
 
