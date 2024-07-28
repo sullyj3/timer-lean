@@ -179,26 +179,19 @@ def handleClientCmd (cmd : Command) : CmdHandlerT IO Unit := do
     let timers ← state.timers.atomically get
 
     _ ← client.send <| (CmdResponse.list <| Sand.timersForClient timers).serialize
-
-  -- TODO factor repetition
   | .pause which => do
     let result ← (SanddState.pauseTimer which).run {state, client, clientConnectedTime}
-    match result with
-    | .ok () => do
-      _ ← client.send CmdResponse.ok.serialize
-    | .error .notFound => do
-      _ ← client.send (CmdResponse.timerNotFound which).serialize
-    | .error .noop => do
-      _ ← client.send CmdResponse.noop.serialize
+    sendResult client which result
   | .resume which => do
     let result ← state.resumeTimer which clientConnectedTime
+    sendResult client which result
+  where
+  sendResult (client : Socket) (timerId : TimerId) result := do
+    _ ← client.send <|
     match result with
-    | .ok () => do
-      _ ← client.send CmdResponse.ok.serialize
-    | .error .notFound => do
-      _ ← client.send (CmdResponse.timerNotFound which).serialize
-    | .error .noop => do
-      _ ← client.send CmdResponse.noop.serialize
+    | .ok () => CmdResponse.ok.serialize
+    | .error .notFound => (CmdResponse.timerNotFound timerId).serialize
+    | .error .noop => CmdResponse.noop.serialize
 
 def handleClient : CmdHandlerT IO Unit := do
   let {client, ..} ← read
