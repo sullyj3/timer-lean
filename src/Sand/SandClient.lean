@@ -119,6 +119,12 @@ def parseArgs : List String → Option Command
   | ["cancel", idStr] => do
     let timerId ← idStr.toNat?
     return .cancelTimer timerId
+  | ["pause", idStr] => do
+    let timerId ← idStr.toNat?
+    return .pause timerId
+  | ["resume", idStr] => do
+    let timerId ← idStr.toNat?
+    return .resume timerId
   | args => do
     let duration ← parseTimer args
     return .addTimer duration
