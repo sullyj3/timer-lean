@@ -83,6 +83,7 @@ inductive CmdResponse
   | list (timers : Array TimerInfoForClient)
   | timerNotFound (which : TimerId)
   | noop
+  | serviceError (msg : String)
   deriving ToJson, FromJson
 
 def CmdResponse.serialize : CmdResponse → ByteArray :=

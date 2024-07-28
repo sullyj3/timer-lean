@@ -160,38 +160,37 @@ def addTimer (state : SanddState) (startTime : Moment) (duration : Duration) : I
 
   state.addTimer timerDue
 
-def handleClientCmd (cmd : Command) : CmdHandlerT IO Unit := do
+def handleClientCmd (cmd : Command) : CmdHandlerT IO CmdResponse := do
   let {state, client, clientConnectedTime} ← read
   match cmd with
   | .addTimer durationMs => do
     _ ← IO.asTask <| addTimer state clientConnectedTime durationMs
-    _ ← client.send CmdResponse.ok.serialize
+    return CmdResponse.ok
   | .cancelTimer which => do
     match ← state.removeTimer which with
     | .error .notFound => do
-      _ ← client.send <| (CmdResponse.timerNotFound which).serialize
+      return CmdResponse.timerNotFound which
     -- TODO yuck
     | .error err@(.noop) => do
-      IO.eprintln s!"BUG: Unexpected error \"{repr err}\" from removeTimer."
-    | .ok () => do
-      _ ← client.send CmdResponse.ok.serialize
+      let errMsg  := s!"BUG: Unexpected error \"{repr err}\" from removeTimer."
+      IO.eprintln errMsg
+      return .serviceError errMsg
+    | .ok () => pure CmdResponse.ok
   | .list => do
     let timers ← state.timers.atomically get
-
-    _ ← client.send <| (CmdResponse.list <| Sand.timersForClient timers).serialize
+    return CmdResponse.list <| Sand.timersForClient timers
   | .pause which => do
     let result ← (SanddState.pauseTimer which).run {state, client, clientConnectedTime}
-    sendResult client which result
+    return responseForResult which result
   | .resume which => do
     let result ← state.resumeTimer which clientConnectedTime
-    sendResult client which result
+    return responseForResult which result
   where
-  sendResult (client : Socket) (timerId : TimerId) result := do
-    _ ← client.send <|
+  responseForResult (timerId : TimerId) result :=
     match result with
-    | .ok () => CmdResponse.ok.serialize
-    | .error .notFound => (CmdResponse.timerNotFound timerId).serialize
-    | .error .noop => CmdResponse.noop.serialize
+    | .ok () => CmdResponse.ok
+    | .error .notFound => CmdResponse.timerNotFound timerId
+    | .error .noop => CmdResponse.noop
 
 def handleClient : CmdHandlerT IO Unit := do
   let {client, ..} ← read
@@ -204,7 +203,8 @@ def handleClient : CmdHandlerT IO Unit := do
     IO.eprintln errMsg
     _ ← Sand.notify errMsg
 
-  handleClientCmd cmd
+  let resp ← handleClientCmd cmd
+  _ ← client.send resp.serialize
 
 partial def forever (act : IO α) : IO β := act *> forever act
 
