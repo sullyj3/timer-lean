@@ -35,12 +35,12 @@ inductive TimerState
 inductive TimerStateForClient
   | running (due : Moment)
   | paused (remaining : Duration)
-  deriving ToJson, FromJson
+  deriving Repr, ToJson, FromJson
 
 structure TimerInfoForClient where
   id : TimerId
   state : TimerStateForClient
-  deriving ToJson, FromJson
+  deriving Repr, ToJson, FromJson
 
 def timersForClient
   (timers : HashMap TimerId (Timer × TimerState))

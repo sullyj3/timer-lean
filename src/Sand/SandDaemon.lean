@@ -8,10 +8,7 @@ open Lean (Json ToJson FromJson toJson fromJson?)
 
 open Batteries (HashMap)
 
-open Sand (
-  Timer TimerId TimerState TimerInfoForClient Command CmdResponse Duration
-  Moment
-  )
+open Sand
 
 inductive TimerOpError
   | notFound
@@ -168,37 +165,38 @@ def addTimer (duration : Duration) : CmdHandlerT IO Unit := do
 
   (SanddState.addTimer timerDue).liftBaseIO
 
-def handleClientCmd (cmd : Command) : CmdHandlerT IO CmdResponse := do
+def handleClientCmd (cmd : Command) : CmdHandlerT IO (ResponseFor cmd) := do
   let env@{state, client, clientConnectedTime} ← read
   match cmd with
   | .addTimer durationMs => do
     _ ← IO.asTask <| (addTimer durationMs).run env
-    return CmdResponse.ok
+    return .ok
   | .cancelTimer which => do
     match ← (SanddState.removeTimer which).liftBaseIO with
     | .error .notFound => do
-      return CmdResponse.timerNotFound which
+      return .timerNotFound
     -- TODO yuck
     | .error err@(.noop) => do
       let errMsg  := s!"BUG: Unexpected error \"{repr err}\" from removeTimer."
       IO.eprintln errMsg
-      return .serviceError errMsg
-    | .ok () => pure CmdResponse.ok
+      IO.Process.exit 1
+    | .ok () => pure .ok
   | .list => do
     let timers ← state.timers.atomically get
-    return CmdResponse.list <| Sand.timersForClient timers
-  | .pause which => do
+    return .ok <| Sand.timersForClient timers
+  | .pauseTimer which => do
     let result ← (SanddState.pauseTimer which).run {state, client, clientConnectedTime}
-    return responseForResult which result
-  | .resume which => do
+    return match result with
+    | .ok () => .ok
+    | .error .notFound => .timerNotFound
+    | .error .noop => .alreadyPaused
+
+  | .resumeTimer which => do
     let result ← (SanddState.resumeTimer which).liftBaseIO
-    return responseForResult which result
-  where
-  responseForResult (timerId : TimerId) result :=
-    match result with
-    | .ok () => CmdResponse.ok
-    | .error .notFound => CmdResponse.timerNotFound timerId
-    | .error .noop => CmdResponse.noop
+    return match result with
+    | .ok () => .ok
+    | .error .notFound => .timerNotFound
+    | .error .noop => .alreadyRunning
 
 def handleClient : CmdHandlerT IO Unit := do
   let {client, ..} ← read
@@ -212,7 +210,7 @@ def handleClient : CmdHandlerT IO Unit := do
     _ ← Sand.notify errMsg
 
   let resp ← handleClientCmd cmd
-  _ ← client.send resp.serialize
+  _ ← client.send <| serializeResponse resp
 
 partial def forever (act : IO α) : IO β := act *> forever act
 

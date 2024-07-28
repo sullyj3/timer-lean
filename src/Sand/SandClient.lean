@@ -3,8 +3,7 @@ import «Sand».Basic
 import «Sand».Time
 import «Sand».Message
 
-open Sand (Timer TimerId TimerInfoForClient Command CmdResponse Duration
-  Moment instHsubMoments)
+open Sand
 
 def withUnixSocket path (action : Socket → IO a) := do
   let addr := Socket.SockAddrUnix.unix path
@@ -124,10 +123,10 @@ def parseArgs : List String → Option Command
     return .cancelTimer { id := timerId }
   | ["pause", idStr] => do
     let timerId ← idStr.toNat?
-    return .pause { id := timerId }
+    return .pauseTimer { id := timerId }
   | ["resume", idStr] => do
     let timerId ← idStr.toNat?
-    return .resume { id := timerId }
+    return .resumeTimer { id := timerId }
   | args => do
     let duration ← parseTimer args
     return .addTimer duration
@@ -162,8 +161,8 @@ def handleCmd (server : Socket) (cmd : Command) : IO Unit := do
   --   we should handle that correctly without allocating such a large
   --   buffer in the common case
   let respStr ← String.fromUTF8! <$> server.recv 10240
-  let resp? : Except String CmdResponse :=
-    fromJson? =<< Lean.Json.parse respStr
+  let resp? : Except String (ResponseFor cmd) :=
+    fromJsonResponse? =<< Lean.Json.parse respStr
   let .ok resp := resp? | do
     IO.println "Failed to parse message from server:"
     println! "    \"{respStr}\""
@@ -172,38 +171,30 @@ def handleCmd (server : Socket) (cmd : Command) : IO Unit := do
   -- Handle response
   match cmd with
   | Command.addTimer timer => do
-    let .ok := resp | unexpectedResponse respStr
+    let .ok := resp
     println! "Timer created for {timer.formatColonSeparated}."
   | Command.cancelTimer timerId => match resp with
     | .ok =>
       println! "Timer #{repr timerId.id} cancelled."
-    | .timerNotFound timerId => timerNotFound timerId
-    | _ => unexpectedResponse respStr
+    | .timerNotFound => timerNotFound timerId
   | Command.list => do
-    let .list timers := resp | unexpectedResponse respStr
+    let .ok timers := resp
     let now ← Moment.mk <$> IO.monoMsNow
     IO.println <| showTimers timers.data now
-  | Command.pause which => match resp with
+  | Command.pauseTimer which => match resp with
     | .ok =>
       println! "Timer #{repr which.id} paused."
-    | .timerNotFound timerId => timerNotFound timerId
-    | .noop =>
+    | .timerNotFound => timerNotFound which
+    | .alreadyPaused =>
       println! "Timer {repr which.id} is already paused."
-    | _ => unexpectedResponse respStr
-  | Command.resume which => match resp with
+  | Command.resumeTimer which => match resp with
     | .ok =>
       println! "Timer #{repr which.id} resumed."
-    | .timerNotFound timerId => timerNotFound timerId
-    | .noop =>
+    | .timerNotFound => timerNotFound which
+    | .alreadyRunning =>
       println! "Timer {repr which.id} is already running."
-    | _ => unexpectedResponse respStr
 
   where
-  unexpectedResponse {α : Type} (resp : String) : IO α := do
-    IO.println "Unexpected response from server:"
-    println! "    \"{resp}\""
-    IO.Process.exit 1
-
   timerNotFound (timerId : TimerId) := do
     println! "Timer with id \"{repr timerId.id}\" not found."
     IO.Process.exit 1
