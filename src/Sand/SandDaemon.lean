@@ -37,9 +37,12 @@ def playTimerSound : IO Unit := do
   -- todo choose most appropriate media player, possibly record a dependency for package
   _ ← Sand.runCmdSimple "paplay" #[soundPath.toString]
 
+def Timers := HashMap TimerId (Timer × TimerState)
+  deriving EmptyCollection
+
 structure SanddState where
   nextTimerId : IO.Mutex Nat
-  timers : IO.Mutex (HashMap TimerId (Timer × TimerState))
+  timers : IO.Mutex Timers
 
 def SanddState.pauseTimer
   (state : SanddState) (timerId : TimerId) (clientConnectedTime : Nat)
@@ -53,7 +56,7 @@ def SanddState.pauseTimer
     IO.cancel task
     let remaining := ⟨timer.due - clientConnectedTime⟩
     let newTimerstate := .paused remaining
-    let newTimers := timers.insert timerId (timer, newTimerstate)
+    let newTimers : Timers := timers.insert timerId (timer, newTimerstate)
     set newTimers
     return .ok ()
 
@@ -64,7 +67,8 @@ def SanddState.removeTimer (state : SanddState) (id : TimerId) : BaseIO (TimerOp
     | some (_, timerstate) => do
       if let .running task := timerstate then do
         IO.cancel task
-      set <| timers.erase id
+      let timers' : Timers := timers.erase id
+      set timers'
       pure <| .ok ()
     | none => do
       pure <| .error .notFound
@@ -108,7 +112,8 @@ def SanddState.resumeTimer
     let countdownTask ← IO.asTask <| countdown state timerId newDueTime
     let newTimerstate := .running countdownTask
     let newTimer := {timer with due := newDueTime}
-    set <| timers.insert timerId (newTimer, newTimerstate)
+    let timers' : Timers := timers.insert timerId (newTimer, newTimerstate)
+    set timers'
     return .ok ()
 
 def SanddState.initial : IO SanddState := do
