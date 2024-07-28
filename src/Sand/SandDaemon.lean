@@ -47,21 +47,30 @@ structure SanddState where
   nextTimerId : IO.Mutex Nat
   timers : IO.Mutex Timers
 
+structure CmdHandlerEnv where
+  state : SanddState
+  client : Socket
+  clientConnectedTime : Moment
+
+abbrev CmdHandlerT (m : Type → Type) : Type → Type := ReaderT CmdHandlerEnv m
+
 def SanddState.pauseTimer
-  (state : SanddState) (timerId : TimerId) (clientConnectedTime : Moment)
-  : BaseIO (TimerOpResult Unit) := state.timers.atomically do
-  let timers ← get
-  let some (timer, timerstate) := timers.find? timerId | do
-    return .error .notFound
-  match timerstate with
-  | .paused _ => return .error .noop
-  | .running task => do
-    IO.cancel task
-    let remaining : Duration := timer.due - clientConnectedTime
-    let newTimerstate := .paused remaining
-    let newTimers : Timers := timers.insert timerId (timer, newTimerstate)
-    set newTimers
-    return .ok ()
+  (timerId : TimerId)
+  : CmdHandlerT BaseIO (TimerOpResult Unit) := do
+  let {state, clientConnectedTime, .. } ← read
+  state.timers.atomically do
+    let timers ← get
+    let some (timer, timerstate) := timers.find? timerId | do
+      return .error .notFound
+    match timerstate with
+    | .paused _ => return .error .noop
+    | .running task => do
+      IO.cancel task
+      let remaining : Duration := timer.due - clientConnectedTime
+      let newTimerstate := .paused remaining
+      let newTimers : Timers := timers.insert timerId (timer, newTimerstate)
+      set newTimers
+      return .ok ()
 
 def SanddState.removeTimer (state : SanddState) (id : TimerId) : BaseIO (TimerOpResult Unit) := do
   state.timers.atomically do
@@ -151,10 +160,9 @@ def addTimer (state : SanddState) (startTime : Moment) (duration : Duration) : I
 
   state.addTimer timerDue
 
-def handleClientCmd
-  (client : Socket) (state : SanddState) (clientConnectedTime : Moment)
-  : Command → IO Unit
-
+def handleClientCmd (cmd : Command) : CmdHandlerT IO Unit := do
+  let {state, client, clientConnectedTime} ← read
+  match cmd with
   | .addTimer durationMs => do
     _ ← IO.asTask <| addTimer state clientConnectedTime durationMs
     _ ← client.send CmdResponse.ok.serialize
@@ -174,7 +182,7 @@ def handleClientCmd
 
   -- TODO factor repetition
   | .pause which => do
-    let result ← state.pauseTimer which clientConnectedTime
+    let result ← (SanddState.pauseTimer which).run {state, client, clientConnectedTime}
     match result with
     | .ok () => do
       _ ← client.send CmdResponse.ok.serialize
@@ -192,16 +200,8 @@ def handleClientCmd
     | .error .noop => do
       _ ← client.send CmdResponse.noop.serialize
 
-def handleClient
-  (client : Socket)
-  (state : SanddState)
-  : IO Unit := do
-
-  -- IO.monoMsNow is an ffi call to `std::chrono::steady_clock::now()`
-  -- Technically this clock is not guaranteed to be the same between
-  -- processes, but it seems to be in practice on linux
-  let clientConnectedTime ← Moment.mk <$> IO.monoMsNow
-
+def handleClient : CmdHandlerT IO Unit := do
+  let {client, ..} ← read
   -- receive and parse message
   let bytes ← client.recv (maxBytes := 1024)
   let clientMsg := String.fromUTF8! bytes
@@ -211,7 +211,7 @@ def handleClient
     IO.eprintln errMsg
     _ ← Sand.notify errMsg
 
-  handleClientCmd client state clientConnectedTime cmd
+  handleClientCmd cmd
 
 partial def forever (act : IO α) : IO β := act *> forever act
 
@@ -227,6 +227,8 @@ def main (_args : List String) : IO α := do
 
   forever do
     let (client, _clientAddr) ← sock.accept
-    let _tsk ← IO.asTask <|
-      handleClient client state
+    let _tsk ← IO.asTask <| do
+      let clientConnectedTime ← Moment.mk <$> IO.monoMsNow
+      let env := {state, client, clientConnectedTime}
+      handleClient.run env
 end SandDaemon
