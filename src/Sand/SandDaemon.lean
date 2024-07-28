@@ -43,9 +43,13 @@ def playTimerSound : IO Unit := do
   -- todo choose most appropriate media player, possibly record a dependency for package
   _ ← Sand.runCmdSimple "paplay" #[soundPath.toString]
 
+inductive TimerState
+  | paused (remaining : Duration)
+  | running (task : Task (Except IO.Error Unit))
+
 structure SanddState where
   nextTimerId : IO.Mutex Nat
-  timers : IO.Mutex (HashMap Nat (Timer × Task (Except IO.Error Unit)))
+  timers : IO.Mutex (HashMap Nat (Timer × TimerState))
 
 def SanddState.removeTimer (state : SanddState) (id : TimerId) : BaseIO (TimerOpResult Unit) := do
   let timers ← state.timers.atomically get
@@ -86,7 +90,6 @@ partial def countdown
     if (← state.timerExists id) then
       loop
 
-
 def SanddState.initial : IO SanddState := do
   return {
     nextTimerId := (← IO.Mutex.new 1),
@@ -97,7 +100,7 @@ def SanddState.addTimer (state : SanddState) (due : Nat) : BaseIO Unit := do
   let id : TimerId ← state.nextTimerId.atomically (getModify Nat.succ)
   let timer : Timer := ⟨id, due⟩
   let countdownTask ← IO.asTask <| countdown state id due
-  state.timers.atomically <| modify (·.insert id (timer, countdownTask))
+  state.timers.atomically <| modify (·.insert id (timer, .running countdownTask))
 
 partial def busyWaitTil (due : Nat) : IO Unit := do
   while (← IO.monoMsNow) < due do
