@@ -44,7 +44,7 @@ structure CmdHandlerEnv where
 
 abbrev CmdHandlerT (m : Type → Type) : Type → Type := ReaderT CmdHandlerEnv m
 
-instance monadLiftCmdHandlerT : MonadLift (CmdHandlerT BaseIO) (CmdHandlerT IO) where
+instance monadLiftReaderT [MonadLift m n] : MonadLift (ReaderT σ m) (ReaderT σ n) where
   monadLift action := λ r => liftM <| action.run r
 
 def CmdHandlerT.asTask (action : CmdHandlerT IO α) : CmdHandlerT IO (Task (Except IO.Error α)) :=
