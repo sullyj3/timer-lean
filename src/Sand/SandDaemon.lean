@@ -44,9 +44,14 @@ structure CmdHandlerEnv where
 
 abbrev CmdHandlerT (m : Type → Type) : Type → Type := ReaderT CmdHandlerEnv m
 
--- TODO more general solution
-def CmdHandlerT.liftBaseIO (act : CmdHandlerT BaseIO α) : CmdHandlerT IO α :=
-  λ r ↦ (act.run r).toIO
+instance monadLiftCmdHandlerT : MonadLift (CmdHandlerT BaseIO) (CmdHandlerT IO) where
+  monadLift action := λ r => liftM <| action.run r
+
+def CmdHandlerT.asTask (action : CmdHandlerT IO α) : CmdHandlerT IO (Task (Except IO.Error α)) :=
+  control (m := IO) (n := CmdHandlerT IO) λ runInBase ↦ do
+    let actionIO := runInBase action
+    let task ← actionIO.asTask
+    pure task
 
 def pauseTimer
   (timerId : TimerId)
@@ -98,7 +103,7 @@ partial def countdown (id : TimerId) (due : Moment) : CmdHandlerT IO Unit := do
     if remaining.millis == 0 then
       _ ← Sand.notify s!"Time's up!"
       playTimerSound
-      match ← (removeTimer id).liftBaseIO with
+      match ← removeTimer id with
       | .ok => return
       | .timerNotFound => do
         IO.eprintln s!"BUG: countdown tried to remove nonexistent timer {repr id.id}"
@@ -135,7 +140,7 @@ partial def busyWaitTil (due : Nat) : IO Unit := do
     pure ()
 
 def addTimer (duration : Duration) : CmdHandlerT IO Unit := do
-  let env@{clientConnectedTime, state, ..} ← read
+  let {clientConnectedTime, state, ..} ← read
 
   let msg := s!"Starting timer for {duration.formatColonSeparated}"
   IO.eprintln msg
@@ -148,23 +153,22 @@ def addTimer (duration : Duration) : CmdHandlerT IO Unit := do
   let id : TimerId ←
     TimerId.mk <$> state.nextTimerId.atomically (getModify Nat.succ)
   let timer : Timer := {id, due}
-  let countdownTask ← IO.asTask <| (countdown id due).run env
+  let countdownTask ← (countdown id due).asTask
 
   state.timers.atomically <| modify (·.insert id (timer, .running countdownTask))
 
 def handleClientCmd (cmd : Command) : CmdHandlerT IO (ResponseFor cmd) := do
-  let env@{state, client, clientConnectedTime} ← read
+  let {state, ..} ← read
   match cmd with
   | .addTimer duration => do
-    _ ← IO.asTask <| (addTimer duration).run env
+    addTimer duration
     return .ok
-  | .cancelTimer which => (removeTimer which).liftBaseIO
+  | .cancelTimer which => removeTimer which
   | .list => do
     let timers ← state.timers.atomically get
     return .ok <| Sand.timersForClient timers
-  | .pauseTimer which =>
-    (pauseTimer which).run {state, client, clientConnectedTime}
-  | .resumeTimer which => (resumeTimer which).liftBaseIO
+  | .pauseTimer which => pauseTimer which
+  | .resumeTimer which => resumeTimer which
 
 def handleClient : CmdHandlerT IO Unit := do
   let {client, ..} ← read
