@@ -132,10 +132,6 @@ def DaemonState.initial : IO DaemonState := do
     timers := (← IO.Mutex.new ∅)
   }
 
-partial def busyWaitTil (due : Nat) : IO Unit := do
-  while (← IO.monoMsNow) < due do
-    pure ()
-
 def addTimer (duration : Duration) : CmdHandlerT IO Unit := do
   let {clientConnectedTime, state, ..} ← read
 
