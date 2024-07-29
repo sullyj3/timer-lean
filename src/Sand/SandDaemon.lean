@@ -10,15 +10,6 @@ open Batteries (HashMap)
 
 open Sand
 
-inductive TimerOpError
-  | notFound
-  -- returned when calling pause on a paused timer, or resume on a running timer
-  | noop
-  deriving Repr
-
--- TODO this should maybe be subsumed by CmdResponse?
-def TimerOpResult α := Except TimerOpError α
-
 private def xdgDataHome : OptionT BaseIO FilePath :=
   xdgDataHomeEnv <|> dataHomeDefault
   where
@@ -59,24 +50,24 @@ def CmdHandlerT.liftBaseIO (act : CmdHandlerT BaseIO α) : CmdHandlerT IO α :=
 
 def SanddState.pauseTimer
   (timerId : TimerId)
-  : CmdHandlerT BaseIO (TimerOpResult Unit) := do
+  : CmdHandlerT BaseIO PauseTimerResponse := do
   let {state, clientConnectedTime, .. } ← read
   state.timers.atomically do
     let timers ← get
     let some (timer, timerstate) := timers.find? timerId | do
-      return .error .notFound
+      return .timerNotFound
     match timerstate with
-    | .paused _ => return .error .noop
+    | .paused _ => return .alreadyPaused
     | .running task => do
       IO.cancel task
       let remaining : Duration := timer.due - clientConnectedTime
       let newTimerstate := .paused remaining
       let newTimers : Timers := timers.insert timerId (timer, newTimerstate)
       set newTimers
-      return .ok ()
+      return .ok
 
 def SanddState.removeTimer (id : TimerId)
-  : CmdHandlerT BaseIO (TimerOpResult Unit) := do
+  : CmdHandlerT BaseIO CancelTimerResponse := do
   let {state, ..} ← read
   state.timers.atomically do
     let timers ← get
@@ -86,9 +77,9 @@ def SanddState.removeTimer (id : TimerId)
         IO.cancel task
       let timers' : Timers := timers.erase id
       set timers'
-      pure <| .ok ()
+      pure .ok
     | none => do
-      pure <| .error .notFound
+      pure .timerNotFound
 
 -- IO.sleep isn't guaranteed to be on time, I find it's usually about 10ms late
 -- Therefore, we repeatedly sleep while there's enough time left that we can
@@ -107,21 +98,23 @@ partial def countdown (id : TimerId) (due : Moment) : CmdHandlerT IO Unit := do
     if remaining.millis == 0 then
       _ ← Sand.notify s!"Time's up!"
       playTimerSound
-      _ ← (SanddState.removeTimer id).liftBaseIO
-      return
+      match ← (SanddState.removeTimer id).liftBaseIO with
+      | .ok => return
+      | .timerNotFound => do
+        IO.eprintln s!"BUG: countdown tried to remove nonexistent timer {repr id.id}"
     if remaining.millis > 30 then
       IO.sleep (remaining.millis/2).toUInt32
     loop
 
 def SanddState.resumeTimer (timerId : TimerId)
-  : CmdHandlerT BaseIO (TimerOpResult Unit) := do
+  : CmdHandlerT BaseIO ResumeTimerResponse := do
   let env@{state, clientConnectedTime, ..} ← read
   state.timers.atomically do
     let timers ← get
     let some (timer, timerstate) := timers.find? timerId | do
-      return .error .notFound
+      return .timerNotFound
     match timerstate with
-    | .running _ => return .error .noop
+    | .running _ => return .alreadyRunning
     | .paused remaining => do
       let newDueTime : Moment := clientConnectedTime + remaining
       let countdownTask ← IO.asTask <| (countdown timerId newDueTime).run env
@@ -129,7 +122,7 @@ def SanddState.resumeTimer (timerId : TimerId)
       let newTimer := {timer with due := newDueTime}
       let timers' : Timers := timers.insert timerId (newTimer, newTimerstate)
       set timers'
-      return .ok ()
+      return .ok
 
 def SanddState.initial : IO SanddState := do
   return {
@@ -171,32 +164,13 @@ def handleClientCmd (cmd : Command) : CmdHandlerT IO (ResponseFor cmd) := do
   | .addTimer durationMs => do
     _ ← IO.asTask <| (addTimer durationMs).run env
     return .ok
-  | .cancelTimer which => do
-    match ← (SanddState.removeTimer which).liftBaseIO with
-    | .error .notFound => do
-      return .timerNotFound
-    -- TODO yuck
-    | .error err@(.noop) => do
-      let errMsg  := s!"BUG: Unexpected error \"{repr err}\" from removeTimer."
-      IO.eprintln errMsg
-      IO.Process.exit 1
-    | .ok () => pure .ok
+  | .cancelTimer which => (SanddState.removeTimer which).liftBaseIO
   | .list => do
     let timers ← state.timers.atomically get
     return .ok <| Sand.timersForClient timers
-  | .pauseTimer which => do
-    let result ← (SanddState.pauseTimer which).run {state, client, clientConnectedTime}
-    return match result with
-    | .ok () => .ok
-    | .error .notFound => .timerNotFound
-    | .error .noop => .alreadyPaused
-
-  | .resumeTimer which => do
-    let result ← (SanddState.resumeTimer which).liftBaseIO
-    return match result with
-    | .ok () => .ok
-    | .error .notFound => .timerNotFound
-    | .error .noop => .alreadyRunning
+  | .pauseTimer which =>
+    (SanddState.pauseTimer which).run {state, client, clientConnectedTime}
+  | .resumeTimer which => (SanddState.resumeTimer which).liftBaseIO
 
 def handleClient : CmdHandlerT IO Unit := do
   let {client, ..} ← read
