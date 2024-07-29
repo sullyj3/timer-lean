@@ -215,6 +215,18 @@ def usage : String := unlines [
     "sand ls | sand list   ",
     "",
     "  List active timers",
+    "",
+    "sand pause <TIMER_ID>",
+    "",
+    "  Pause the timer with the given ID.",
+    "",
+    "sand resume <TIMER_ID>",
+    "",
+    "  Resume the timer with the given ID.",
+    "",
+    "sand cancel <TIMER_ID>",
+    "",
+    "  Cancel the timer with the given ID.",
   ]
 
 def runtimeDir : IO FilePath := do
