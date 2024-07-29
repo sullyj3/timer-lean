@@ -33,7 +33,7 @@ def playTimerSound : IO Unit := do
 def Timers := HashMap TimerId (Timer × TimerState)
   deriving EmptyCollection
 
-def Timers.erase (timers : Timers) (id : TimerId) : Timers := HashMap.erase timers id
+def Timers.erase : Timers → TimerId → Timers := HashMap.erase
 
 structure DaemonState where
   nextTimerId : IO.Mutex Nat
