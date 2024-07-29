@@ -33,6 +33,8 @@ def playTimerSound : IO Unit := do
 def Timers := HashMap TimerId (Timer × TimerState)
   deriving EmptyCollection
 
+def Timers.erase (timers : Timers) (id : TimerId) : Timers := HashMap.erase timers id
+
 structure DaemonState where
   nextTimerId : IO.Mutex Nat
   timers : IO.Mutex Timers
@@ -75,10 +77,8 @@ def removeTimer (id : TimerId)
     let timers ← get
     match timers.find? id with
     | some (_, timerstate) => do
-      if let .running task := timerstate then do
-        IO.cancel task
-      let timers' : Timers := timers.erase id
-      set timers'
+      if let .running task := timerstate then IO.cancel task
+      set <| timers.erase id
       pure .ok
     | none => do
       pure .timerNotFound
