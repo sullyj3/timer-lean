@@ -33,12 +33,12 @@ def playTimerSound : IO Unit := do
 def Timers := HashMap TimerId (Timer × TimerState)
   deriving EmptyCollection
 
-structure SanddState where
+structure DaemonState where
   nextTimerId : IO.Mutex Nat
   timers : IO.Mutex Timers
 
 structure CmdHandlerEnv where
-  state : SanddState
+  state : DaemonState
   client : Socket
   clientConnectedTime : Moment
 
@@ -48,7 +48,7 @@ abbrev CmdHandlerT (m : Type → Type) : Type → Type := ReaderT CmdHandlerEnv 
 def CmdHandlerT.liftBaseIO (act : CmdHandlerT BaseIO α) : CmdHandlerT IO α :=
   λ r ↦ (act.run r).toIO
 
-def SanddState.pauseTimer
+def pauseTimer
   (timerId : TimerId)
   : CmdHandlerT BaseIO PauseTimerResponse := do
   let {state, clientConnectedTime, .. } ← read
@@ -66,7 +66,7 @@ def SanddState.pauseTimer
       set newTimers
       return .ok
 
-def SanddState.removeTimer (id : TimerId)
+def removeTimer (id : TimerId)
   : CmdHandlerT BaseIO CancelTimerResponse := do
   let {state, ..} ← read
   state.timers.atomically do
@@ -98,7 +98,7 @@ partial def countdown (id : TimerId) (due : Moment) : CmdHandlerT IO Unit := do
     if remaining.millis == 0 then
       _ ← Sand.notify s!"Time's up!"
       playTimerSound
-      match ← (SanddState.removeTimer id).liftBaseIO with
+      match ← (removeTimer id).liftBaseIO with
       | .ok => return
       | .timerNotFound => do
         IO.eprintln s!"BUG: countdown tried to remove nonexistent timer {repr id.id}"
@@ -106,7 +106,7 @@ partial def countdown (id : TimerId) (due : Moment) : CmdHandlerT IO Unit := do
       IO.sleep (remaining.millis/2).toUInt32
     loop
 
-def SanddState.resumeTimer (timerId : TimerId)
+def resumeTimer (timerId : TimerId)
   : CmdHandlerT BaseIO ResumeTimerResponse := do
   let env@{state, clientConnectedTime, ..} ← read
   state.timers.atomically do
@@ -124,13 +124,14 @@ def SanddState.resumeTimer (timerId : TimerId)
       set timers'
       return .ok
 
-def SanddState.initial : IO SanddState := do
+def DaemonState.initial : IO DaemonState := do
   return {
     nextTimerId := (← IO.Mutex.new 1),
     timers := (← IO.Mutex.new ∅)
   }
 
-def SanddState.addTimer (due : Moment) : CmdHandlerT BaseIO Unit := do
+-- TODO inline this
+def addTimer (due : Moment) : CmdHandlerT BaseIO Unit := do
   let env@{state, ..} ← read
   let id : TimerId ←
     TimerId.mk <$> state.nextTimerId.atomically (getModify Nat.succ)
@@ -142,7 +143,7 @@ partial def busyWaitTil (due : Nat) : IO Unit := do
   while (← IO.monoMsNow) < due do
     pure ()
 
-def addTimer (duration : Duration) : CmdHandlerT IO Unit := do
+def addTimer2 (duration : Duration) : CmdHandlerT IO Unit := do
   let {clientConnectedTime, ..} ← read
 
   -- run timer
@@ -156,21 +157,21 @@ def addTimer (duration : Duration) : CmdHandlerT IO Unit := do
   -- go off 30s after wake.{}
   let timerDue := clientConnectedTime + duration
 
-  (SanddState.addTimer timerDue).liftBaseIO
+  (addTimer timerDue).liftBaseIO
 
 def handleClientCmd (cmd : Command) : CmdHandlerT IO (ResponseFor cmd) := do
   let env@{state, client, clientConnectedTime} ← read
   match cmd with
   | .addTimer durationMs => do
-    _ ← IO.asTask <| (addTimer durationMs).run env
+    _ ← IO.asTask <| (addTimer2 durationMs).run env
     return .ok
-  | .cancelTimer which => (SanddState.removeTimer which).liftBaseIO
+  | .cancelTimer which => (removeTimer which).liftBaseIO
   | .list => do
     let timers ← state.timers.atomically get
     return .ok <| Sand.timersForClient timers
   | .pauseTimer which =>
-    (SanddState.pauseTimer which).run {state, client, clientConnectedTime}
-  | .resumeTimer which => (SanddState.resumeTimer which).liftBaseIO
+    (pauseTimer which).run {state, client, clientConnectedTime}
+  | .resumeTimer which => (resumeTimer which).liftBaseIO
 
 def handleClient : CmdHandlerT IO Unit := do
   let {client, ..} ← read
@@ -195,7 +196,7 @@ def SandDaemon.main (_args : List String) : IO α := do
   IO.eprintln "sandd started"
   IO.eprintln "listening..."
 
-  let state ← SanddState.initial
+  let state ← DaemonState.initial
 
   forever do
     let (client, _clientAddr) ← sock.accept
