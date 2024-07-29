@@ -40,7 +40,7 @@ inductive ResumeTimerResponse
   | alreadyRunning
   deriving Repr, ToJson, FromJson
 
-def ResponseFor : Command → Type
+abbrev ResponseFor : Command → Type
   | .addTimer    _ => AddTimerResponse
   | .list          => ListResponse
   | .cancelTimer _ => CancelTimerResponse
@@ -48,20 +48,14 @@ def ResponseFor : Command → Type
   | .resumeTimer _ => ResumeTimerResponse
 
 def toJsonResponse {cmd : Command} (resp : ResponseFor cmd) : Lean.Json := by
-  cases cmd <;> (
-    simp only [ResponseFor] at resp
-    exact toJson resp
-  )
+  cases cmd <;> exact toJson resp
 
 def serializeResponse {cmd : Command} (resp : ResponseFor cmd) : ByteArray :=
   String.toUTF8 <| toString <| toJsonResponse resp
 
 def fromJsonResponse? {cmd : Command}
   (resp : Json) : Except String (ResponseFor cmd) := by
-  cases cmd <;> (
-    simp only [ResponseFor]
-    exact fromJson? resp
-  )
+  cases cmd <;> exact fromJson? resp
 
 
 end Sand
