@@ -130,40 +130,33 @@ def DaemonState.initial : IO DaemonState := do
     timers := (← IO.Mutex.new ∅)
   }
 
--- TODO inline this
-def addTimer (due : Moment) : CmdHandlerT BaseIO Unit := do
-  let env@{state, ..} ← read
-  let id : TimerId ←
-    TimerId.mk <$> state.nextTimerId.atomically (getModify Nat.succ)
-  let timer : Timer := ⟨id, due⟩
-  let countdownTask ← IO.asTask <| (countdown id due).run env
-  state.timers.atomically <| modify (·.insert id (timer, .running countdownTask))
-
 partial def busyWaitTil (due : Nat) : IO Unit := do
   while (← IO.monoMsNow) < due do
     pure ()
 
-def addTimer2 (duration : Duration) : CmdHandlerT IO Unit := do
-  let {clientConnectedTime, ..} ← read
+def addTimer (duration : Duration) : CmdHandlerT IO Unit := do
+  let env@{clientConnectedTime, state, ..} ← read
 
-  -- run timer
   let msg := s!"Starting timer for {duration.formatColonSeparated}"
-
   IO.eprintln msg
   _ ← Sand.notify msg
 
   -- TODO: problem with this approach - time spent suspended is not counted.
   -- eg if I set a 1 minute timer, then suspend at 30s, the timer will
   -- go off 30s after wake.{}
-  let timerDue := clientConnectedTime + duration
+  let due := clientConnectedTime + duration
+  let id : TimerId ←
+    TimerId.mk <$> state.nextTimerId.atomically (getModify Nat.succ)
+  let timer : Timer := {id, due}
+  let countdownTask ← IO.asTask <| (countdown id due).run env
 
-  (addTimer timerDue).liftBaseIO
+  state.timers.atomically <| modify (·.insert id (timer, .running countdownTask))
 
 def handleClientCmd (cmd : Command) : CmdHandlerT IO (ResponseFor cmd) := do
   let env@{state, client, clientConnectedTime} ← read
   match cmd with
-  | .addTimer durationMs => do
-    _ ← IO.asTask <| (addTimer2 durationMs).run env
+  | .addTimer duration => do
+    _ ← IO.asTask <| (addTimer duration).run env
     return .ok
   | .cancelTimer which => (removeTimer which).liftBaseIO
   | .list => do
