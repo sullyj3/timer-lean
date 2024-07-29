@@ -47,8 +47,8 @@ abbrev CmdHandlerT (m : Type → Type) : Type → Type := ReaderT CmdHandlerEnv 
 instance monadLiftReaderT [MonadLift m n] : MonadLift (ReaderT σ m) (ReaderT σ n) where
   monadLift action := λ r => liftM <| action.run r
 
-def CmdHandlerT.asTask (action : CmdHandlerT IO α) : CmdHandlerT IO (Task (Except IO.Error α)) :=
-  control (m := IO) λ runInBase ↦ (runInBase action).asTask
+def ReaderT.asTask (action : ReaderT σ IO α) : ReaderT σ IO (Task (Except IO.Error α)) :=
+  controlAt IO λ runInBase ↦ (runInBase action).asTask
 
 def pauseTimer
   (timerId : TimerId)
