@@ -48,10 +48,7 @@ instance monadLiftCmdHandlerT : MonadLift (CmdHandlerT BaseIO) (CmdHandlerT IO) 
   monadLift action := λ r => liftM <| action.run r
 
 def CmdHandlerT.asTask (action : CmdHandlerT IO α) : CmdHandlerT IO (Task (Except IO.Error α)) :=
-  control (m := IO) (n := CmdHandlerT IO) λ runInBase ↦ do
-    let actionIO := runInBase action
-    let task ← actionIO.asTask
-    pure task
+  control (m := IO) λ runInBase ↦ (runInBase action).asTask
 
 def pauseTimer
   (timerId : TimerId)
