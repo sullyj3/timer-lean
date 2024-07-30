@@ -19,11 +19,22 @@ private def xdgDataHome : OptionT BaseIO FilePath :=
 
 def dataDir : OptionT BaseIO FilePath := xdgDataHome <&> (· / "sand")
 
-def playTimerSound : IO Unit := do
-  let some dir ← ↑(OptionT.run dataDir) | do
-    IO.eprintln "Warning: failed to locate XDG_DATA_HOME. Audio will not work."
+def xdgSoundLocation : OptionT BaseIO FilePath := do
+  let dir ← dataDir
   let soundPath := dir / "timer_sound.opus"
-  if not (← soundPath.pathExists) then do
+  guard (← soundPath.pathExists)
+  pure soundPath
+
+def usrshareSoundLocation : OptionT BaseIO FilePath := do
+  let path : FilePath := "/usr/share/sand/timer_sound.opus"
+  guard (← path.pathExists)
+  pure path
+
+def playTimerSound : IO Unit := do
+  let soundPath? ← liftM (xdgSoundLocation <|> usrshareSoundLocation).run
+  let some soundPath := soundPath? | do
+    -- TODO we should probably just print this once at startup, rather than
+    -- every time we attempt to play sound
     IO.eprintln "Warning: failed to locate notification sound. Audio will not work"
     return ()
 
