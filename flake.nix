@@ -11,6 +11,9 @@
     devShells.x86_64-linux.default = pkgs.mkShell {
       buildInputs = [
         pkgs.lean4
+        (pkgs.python3.withPackages (python-pkgs: [
+          python-pkgs.pytest
+        ]))
       ];
     };
   };
