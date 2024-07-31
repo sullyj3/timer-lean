@@ -72,8 +72,11 @@ def main():
     with daemon():
         run_client_tests()
 
-def test_list(client_sock):
-    # test list
+def test_list():
+    print("-- testing list...")
+    client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client_sock.connect(SOCKET_PATH)
+
     msg = 'list'
     msg_bytes = bytes(json.dumps(msg), encoding="utf-8")
     client_sock.send(msg_bytes)
@@ -87,19 +90,39 @@ def test_list(client_sock):
         print(f"expected: {expected}")
         print(f"received: {response}")
         sys.exit(1)
+    client_sock.close()
+    print("-- ok.")
+
+def test_add():
+    print("-- testing add...")
+    client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client_sock.connect(SOCKET_PATH)
+
+    msg = {'addTimer': {'duration': {'millis': 60000}}}
+    msg_bytes = bytes(json.dumps(msg), encoding="utf-8")
+    client_sock.send(msg_bytes)
+
+    resp_bytes = client_sock.recv(1024)
+    response = json.loads(resp_bytes.decode('utf-8'))
+    expected = 'ok'
+
+    if response != expected:
+        print(f"sent: {msg}")
+        print(f"expected: {expected}")
+        print(f"received: {response}")
+        sys.exit(1)
+    client_sock.close()
+    print("-- ok.")
 
 def run_client_tests():
     print(f"-- Running client tests against {SOCKET_PATH}")
 
-    client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    client_sock.connect(SOCKET_PATH)
-
-    test_list(client_sock)
+    test_list()
+    test_add()
 
     print("-------------------")
     print("All tests passed")
     print("-------------------")
-    client_sock.close()
 
 if __name__ == "__main__":
     main()
