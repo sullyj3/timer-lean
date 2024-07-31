@@ -72,12 +72,7 @@ def main():
     with daemon():
         run_client_tests()
 
-def run_client_tests():
-    print(f"-- Running client tests against {SOCKET_PATH}")
-
-    client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    client_sock.connect(SOCKET_PATH)
-
+def test_list(client_sock):
     # test list
     msg = 'list'
     msg_bytes = bytes(json.dumps(msg), encoding="utf-8")
@@ -92,6 +87,14 @@ def run_client_tests():
         print(f"expected: {expected}")
         print(f"received: {response}")
         sys.exit(1)
+
+def run_client_tests():
+    print(f"-- Running client tests against {SOCKET_PATH}")
+
+    client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client_sock.connect(SOCKET_PATH)
+
+    test_list(client_sock)
 
     print("-------------------")
     print("All tests passed")
