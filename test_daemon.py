@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+
+'''
+Sand integration tests.
+
+If this gets too convoluted, we'll switch to a proper test framework.
+'''
+
 import time
 import socket
 import sys
@@ -11,6 +18,8 @@ import codecs
 from contextlib import contextmanager
 
 SOCKET_PATH = "./test.sock"
+
+failure = False
 
 '''
 Remove the socket file if it already exists
@@ -48,6 +57,8 @@ def daemon():
         daemon_proc = subprocess.Popen(
             [daemon_command] + daemon_args,
             pass_fds=(sock.fileno(),),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
 
         print(f"-- Daemon started with PID {daemon_proc.pid}")
@@ -62,7 +73,7 @@ def daemon():
         print(f"-- Daemon terminated")
         print(f"-- Removing socket file {SOCKET_PATH}")
         ensure_socket_deleted()
-        
+
 
 def main():
     print("--------------------------")
@@ -70,6 +81,8 @@ def main():
     print("--------------------------")
 
     with daemon():
+        # wait a moment for the daemon to start
+        time.sleep(0.1)
         run_client_tests()
 
 @contextmanager
@@ -82,44 +95,78 @@ def client_socket():
         client_sock.close()
 
 def test_msg_and_response(test_name, msg, expected):
-    print(f'-- testing {test_name}...')
-    with client_socket() as client_sock:
+    global failure
+    try:
         msg_bytes = bytes(json.dumps(msg), encoding='utf-8')
-        client_sock.send(msg_bytes)
 
-        resp_bytes = client_sock.recv(1024)
+        with client_socket() as client_sock:
+            client_sock.send(msg_bytes)
+            resp_bytes = client_sock.recv(1024)
+
         response = json.loads(resp_bytes.decode('utf-8'))
 
         if response != expected:
+            print()
+            print(f'-- test {test_name} failed.')
             print(f'sent: {msg}')
             print(f'expected: {expected}')
             print(f'received: {response}')
-            sys.exit(1)
-    print('-- ok.')
 
-def test_list():
-    test_msg_and_response(
-        'list',
-        'list',
-        {'ok': {'timers': []}}
-    )
+            failure = True
+            print('❌', end='', flush=True)
+            return
 
-def test_add():
-    test_msg_and_response(
-        'add',
-        {'addTimer': {'duration': {'millis': 60000}}},
-        'ok'
-    )
+        print('✔️', end='', flush=True)
+    except Exception as e:
+        print()
+        print(f'-- test {test_name} failed.')
+        print(f'sent: {msg}')
+        print(f'expected: {expected}')
+        print(f'but got exception: {e}')
+
+        failure = True
+        print('❌', end='', flush=True)
+        return
+
+'''
+format for tests:
+{
+    'test_name': Name of the test,
+    'msg':       Message to send to the daemon. Will be serialised with 
+                 json.dumps().
+    'expected':  Expected response from the daemon. Will be deserialised with 
+                 json.loads().
+}
+'''
+test_cases = [
+    {
+        'test_name': 'list',
+        'msg': 'list',
+        'expected': {'ok': {'timers': []}}
+    },
+    {
+        'test_name': 'add',
+        'msg': {'addTimer': {'duration': {'millis': 60000}}},
+        'expected': 'ok'
+    },
+]
 
 def run_client_tests():
-    print(f"-- Running client tests against {SOCKET_PATH}")
+    print(f'-- Running client tests against {SOCKET_PATH}...')
 
-    test_list()
-    test_add()
+    for test_case in test_cases:
+        test_msg_and_response(**test_case)
+    print()
 
-    print("-------------------")
-    print("All tests passed")
-    print("-------------------")
+    if failure:
+        print("-------------------")
+        print("Some tests failed")
+        print("-------------------")
+        sys.exit(1)
+    else:
+        print("-------------------")
+        print("All tests passed")
+        print("-------------------")
 
 if __name__ == "__main__":
     main()
