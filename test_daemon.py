@@ -67,7 +67,7 @@ def main():
     print("Starting integration tests")
     print("--------------------------")
 
-    with daemon() as daemon_proc:
+    with daemon():
         run_client_tests()
 
 def run_client_tests():
