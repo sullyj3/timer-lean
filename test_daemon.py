@@ -75,9 +75,21 @@ def run_client_tests():
 
     client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     client_sock.connect(SOCKET_PATH)
-    client_sock.send(b'"list"')
+
+    # test list
+    msg = b'"list"'
+    client_sock.send(msg)
     response = client_sock.recv(1024)
-    print(f"-- Received response: {response}")
+    expected = b'{"ok": {"timers": []}}'
+    if response != expected:
+        print(f"sent: {msg}")
+        print(f"expected: {expected}")
+        print(f"received: {response}")
+        sys.exit(1)
+
+    print("-------------------")
+    print("All tests passed")
+    print("-------------------")
     client_sock.close()
 
 if __name__ == "__main__":
