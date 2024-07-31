@@ -15,7 +15,7 @@ jobs:
           auto-config: "false"
           use-mathlib-cache: "false"
           build: "true"
-      - name: Run tests
+      - name: Run integration tests
         run: |
           ./test_daemon.py
 
