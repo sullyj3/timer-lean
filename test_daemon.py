@@ -87,12 +87,9 @@ def main():
 
 @contextmanager
 def client_socket():
-    try:
-        client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client_sock:
         client_sock.connect(SOCKET_PATH)
         yield client_sock
-    finally:
-        client_sock.close()
 
 def test_msg_and_response(test_name, msg, expected):
     global failure
