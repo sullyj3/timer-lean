@@ -72,47 +72,44 @@ def main():
     with daemon():
         run_client_tests()
 
+@contextmanager
+def client_socket():
+    try:
+        client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        client_sock.connect(SOCKET_PATH)
+        yield client_sock
+    finally:
+        client_sock.close()
+
+def test_msg_and_response(test_name, msg, expected):
+    print(f'-- testing {test_name}...')
+    with client_socket() as client_sock:
+        msg_bytes = bytes(json.dumps(msg), encoding='utf-8')
+        client_sock.send(msg_bytes)
+
+        resp_bytes = client_sock.recv(1024)
+        response = json.loads(resp_bytes.decode('utf-8'))
+
+        if response != expected:
+            print(f'sent: {msg}')
+            print(f'expected: {expected}')
+            print(f'received: {response}')
+            sys.exit(1)
+    print('-- ok.')
+
 def test_list():
-    print("-- testing list...")
-    client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    client_sock.connect(SOCKET_PATH)
-
-    msg = 'list'
-    msg_bytes = bytes(json.dumps(msg), encoding="utf-8")
-    client_sock.send(msg_bytes)
-
-    resp_bytes = client_sock.recv(1024)
-    response = json.loads(resp_bytes.decode('utf-8'))
-    expected = {'ok': {'timers': []}}
-
-    if response != expected:
-        print(f"sent: {msg}")
-        print(f"expected: {expected}")
-        print(f"received: {response}")
-        sys.exit(1)
-    client_sock.close()
-    print("-- ok.")
+    test_msg_and_response(
+        'list',
+        'list',
+        {'ok': {'timers': []}}
+    )
 
 def test_add():
-    print("-- testing add...")
-    client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    client_sock.connect(SOCKET_PATH)
-
-    msg = {'addTimer': {'duration': {'millis': 60000}}}
-    msg_bytes = bytes(json.dumps(msg), encoding="utf-8")
-    client_sock.send(msg_bytes)
-
-    resp_bytes = client_sock.recv(1024)
-    response = json.loads(resp_bytes.decode('utf-8'))
-    expected = 'ok'
-
-    if response != expected:
-        print(f"sent: {msg}")
-        print(f"expected: {expected}")
-        print(f"received: {response}")
-        sys.exit(1)
-    client_sock.close()
-    print("-- ok.")
+    test_msg_and_response(
+        'add',
+        {'addTimer': {'duration': {'millis': 60000}}},
+        'ok'
+    )
 
 def run_client_tests():
     print(f"-- Running client tests against {SOCKET_PATH}")
