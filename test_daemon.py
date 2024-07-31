@@ -5,6 +5,8 @@ import sys
 import os
 import fcntl
 import subprocess
+import json
+import codecs
 
 from contextlib import contextmanager
 
@@ -77,10 +79,14 @@ def run_client_tests():
     client_sock.connect(SOCKET_PATH)
 
     # test list
-    msg = b'"list"'
-    client_sock.send(msg)
-    response = client_sock.recv(1024)
-    expected = b'{"ok": {"timers": []}}'
+    msg = 'list'
+    msg_bytes = bytes(json.dumps(msg), encoding="utf-8")
+    client_sock.send(msg_bytes)
+
+    resp_bytes = client_sock.recv(1024)
+    response = json.loads(resp_bytes.decode('utf-8'))
+    expected = {'ok': {'timers': []}}
+
     if response != expected:
         print(f"sent: {msg}")
         print(f"expected: {expected}")
