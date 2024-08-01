@@ -63,7 +63,7 @@ def runCmdSimple (cmd : String) (args : Array String := #[]) : IO Unit := do
       stdout := .null,
       stderr := .null,
     }
-  _ ← (child.wait).asTask .dedicated
+  _ ← (child.wait).asTask
 
 def notify (message : String) : IO Unit := do
   -- TODO wrap libnotify with FFI so we can do this properly
