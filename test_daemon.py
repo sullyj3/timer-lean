@@ -92,16 +92,18 @@ def msg_and_response(msg, sock):
     return response
 
 def test_list(daemon, client_socket):
-    msg = 'list'
-    expected = {'ok': {'timers': []}}
-    response = msg_and_response(msg, client_socket)
-    assert response == expected, f"Test 'list' failed. Expected {expected}, got {response}"
+    response = msg_and_response(
+        'list',
+        client_socket
+    )
+    assert response == {'ok': {'timers': []}}
 
 def test_add(daemon, client_socket):
-    msg = {'addTimer': {'duration': {'millis': 60000}}}
-    expected = 'ok'
-    response = msg_and_response(msg, client_socket)
-    assert response == expected, f"Test 'add' failed. Expected {expected}, got {response}"
+    response = msg_and_response(
+        {'addTimer': {'duration': {'millis': 60000}}},
+        client_socket
+    )
+    assert response == 'ok', f"Test 'add' failed. Expected {expected}, got {response}"
 
 if __name__ == "__main__":
     pytest.main([__file__])
