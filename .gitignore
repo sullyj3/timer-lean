@@ -1,3 +1,5 @@
 /.lake
 /release/
 /release.tar.zst
+.direnv/
+__pycache__/
