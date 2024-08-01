@@ -2,9 +2,6 @@
 
 '''
 Sand integration tests.
-
-TODO:
-- take better advantage of pytest's features, eg fixtures
 '''
 
 import time
@@ -75,7 +72,6 @@ def daemon():
         print(f"-- Removing socket file {SOCKET_PATH}")
         ensure_socket_deleted()
 
-
 @pytest.fixture(scope='function')
 def client_socket():
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client_sock:
@@ -91,19 +87,13 @@ def msg_and_response(msg, sock):
     response = json.loads(resp_bytes.decode('utf-8'))
     return response
 
-def test_list(daemon, client_socket):
-    response = msg_and_response(
-        'list',
-        client_socket
-    )
-    assert response == {'ok': {'timers': []}}
-
-def test_add(daemon, client_socket):
-    response = msg_and_response(
-        {'addTimer': {'duration': {'millis': 60000}}},
-        client_socket
-    )
-    assert response == 'ok', f"Test 'add' failed. Expected {expected}, got {response}"
+@pytest.mark.parametrize("test_input, expected_output", [
+    ('list', {'ok': {'timers': []}}),
+    ({'addTimer': {'duration': {'millis': 60000}}}, 'ok'),
+])
+def test_sand_operations(daemon, client_socket, test_input, expected_output):
+    response = msg_and_response(test_input, client_socket)
+    assert response == expected_output, f"Test failed. Expected {expected_output}, got {response}"
 
 if __name__ == "__main__":
     pytest.main([__file__])
