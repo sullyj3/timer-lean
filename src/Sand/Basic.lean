@@ -54,8 +54,8 @@ def timersForClient
 def nullStdioConfig : IO.Process.StdioConfig := ⟨.null, .null, .null⟩
 def SimpleChild : Type := IO.Process.Child nullStdioConfig
 
-def runCmdSimple (cmd : String) (args : Array String := #[]) : IO SimpleChild :=
-  IO.Process.spawn
+def runCmdSimple (cmd : String) (args : Array String := #[]) : IO Unit := do
+  let child ← IO.Process.spawn
     { cmd := cmd,
       args := args,
 
@@ -63,8 +63,9 @@ def runCmdSimple (cmd : String) (args : Array String := #[]) : IO SimpleChild :=
       stdout := .null,
       stderr := .null,
     }
+  _ ← (child.wait).asTask .dedicated
 
-def notify (message : String) : IO SimpleChild :=
+def notify (message : String) : IO Unit := do
   -- TODO wrap libnotify with FFI so we can do this properly
   runCmdSimple "notify-send" #[message]
 

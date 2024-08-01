@@ -30,11 +30,11 @@ def usrshareSoundLocation : OptionT BaseIO FilePath := do
   guard (← path.pathExists)
   pure path
 
+-- TODO we should probably just load this once at startup, rather than
+-- every time we attempt to play sound
 def playTimerSound : IO Unit := do
   let soundPath? ← liftM (xdgSoundLocation <|> usrshareSoundLocation).run
   let some soundPath := soundPath? | do
-    -- TODO we should probably just print this once at startup, rather than
-    -- every time we attempt to play sound
     IO.eprintln "Warning: failed to locate notification sound. Audio will not work"
     return ()
 
@@ -60,8 +60,8 @@ abbrev CmdHandlerT (m : Type → Type) : Type → Type := ReaderT CmdHandlerEnv 
 instance monadLiftReaderT [MonadLift m n] : MonadLift (ReaderT σ m) (ReaderT σ n) where
   monadLift action := λ r => liftM <| action.run r
 
-def ReaderT.asTask (action : ReaderT σ IO α) : ReaderT σ IO (Task (Except IO.Error α)) :=
-  controlAt IO λ runInBase ↦ (runInBase action).asTask
+def ReaderT.asTask (action : ReaderT σ IO α) (prio := Task.Priority.default) : ReaderT σ IO (Task (Except IO.Error α)) :=
+  controlAt IO λ runInBase ↦ (runInBase action).asTask prio
 
 def pauseTimer
   (timerId : TimerId)
@@ -130,7 +130,7 @@ def resumeTimer (timerId : TimerId)
     | .running _ => return .alreadyRunning
     | .paused remaining => do
       let newDueTime : Moment := clientConnectedTime + remaining
-      let countdownTask ← IO.asTask <| (countdown timerId newDueTime).run env
+      let countdownTask ← (countdown timerId newDueTime).run env |>.asTask .dedicated
       let newTimerstate := .running countdownTask
       let newTimer := {timer with due := newDueTime}
       let timers' : Timers := timers.insert timerId (newTimer, newTimerstate)
@@ -157,7 +157,7 @@ def addTimer (duration : Duration) : CmdHandlerT IO Unit := do
   let id : TimerId ←
     TimerId.mk <$> state.nextTimerId.atomically (getModify Nat.succ)
   let timer : Timer := {id, due}
-  let countdownTask ← (countdown id due).asTask
+  let countdownTask ← (countdown id due).asTask .dedicated
 
   state.timers.atomically <| modify (·.insert id (timer, .running countdownTask))
 
@@ -236,7 +236,7 @@ def SandDaemon.main (_args : List String) : IO α := do
 
   forever do
     let (client, _clientAddr) ← sock.accept
-    let _tsk ← IO.asTask <| do
+    let _tsk ← IO.asTask (prio := .dedicated) <| do
       let clientConnectedTime ← Moment.mk <$> IO.monoMsNow
       let env := {state, client, clientConnectedTime}
       handleClient.run env
