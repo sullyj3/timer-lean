@@ -190,12 +190,46 @@ def handleClient : CmdHandlerT IO Unit := do
 
 partial def forever (act : IO α) : IO β := act *> forever act
 
-def SandDaemon.main (_args : List String) : IO α := do
-  let systemdSockFd := 3
-  let sock ← Socket.fromFd systemdSockFd
+inductive EnvFdError
+  | varNotFound
+  | couldntParse
 
-  IO.eprintln "sandd started"
-  IO.eprintln "listening..."
+def EnvFdError.toString : EnvFdError → String
+  | .varNotFound => "SAND_SOCKFD not present in environment"
+  | .couldntParse => "Found SAND_SOCKFD but couldn't parse it as a string"
+
+def envFd : BaseIO (Except EnvFdError UInt32) := do
+  let some str ← IO.getEnv "SAND_SOCKFD"
+    | return .error .varNotFound
+  let some n := str.toNat?
+    | return .error .couldntParse
+  return pure n.toUInt32
+
+def systemdSockFd : UInt32 := 3
+
+def SandDaemon.main (_args : List String) : IO α := do
+
+  let fd? ← envFd
+  let fd : UInt32 ← match fd? with
+  | .error e@(.couldntParse) => do
+    IO.eprintln s!"Error: {e.toString}"
+    IO.Process.exit 1
+  | .error .varNotFound => do
+    IO.eprintln "SAND_SOCKFD not found, falling back on default."
+    pure systemdSockFd
+  | .ok fd => do
+    IO.eprintln "found SAND_SOCKFD."
+    pure fd
+
+  let sock ← match ← (Socket.fromFd fd).toBaseIO with
+  | .ok sock => pure sock
+  | .error e => do
+    IO.eprintln s!"Error creating socket from file descriptor {fd}:"
+    IO.eprintln s!"    {e}"
+    IO.Process.exit 1
+
+
+  IO.eprintln s!"Sand daemon started. listening on fd {fd}"
 
   let state ← DaemonState.initial
 
