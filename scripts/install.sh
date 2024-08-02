@@ -11,10 +11,10 @@ SOUND_PATH="$SOUND_DIR/timer_sound.opus"
 install_sand() {
     set -x
     
-    install -Dm755 ./sand "$BIN_PATH"
-    install -Dm644 resources/systemd/sand.service "$SERVICE_PATH"
-    install -Dm644 resources/systemd/sand.socket "$SOCKET_PATH"
-    install -Dm644 resources/timer_sound.opus "$SOUND_PATH"
+    install -Dm755 sand             "$BIN_PATH"
+    install -Dm644 sand.service     "$SERVICE_PATH"
+    install -Dm644 sand.socket      "$SOCKET_PATH"
+    install -Dm644 timer_sound.opus "$SOUND_PATH"
 
     { set +x; } 2>/dev/null
 

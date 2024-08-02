@@ -14,7 +14,9 @@ set -x
 mkdir -p "release/$dir"
 
 cp -f .lake/build/bin/sand release/$dir/
-cp -rf resources release/$dir/
+cp -f resources/systemd/sand.service release/$dir/
+cp -f resources/systemd/sand.socket release/$dir/
+cp -f resources/timer_sound.opus release/$dir/
 cp -f scripts/install.sh release/$dir/
 cp -f LICENSE release/$dir/
 cp -f README.md release/$dir/
