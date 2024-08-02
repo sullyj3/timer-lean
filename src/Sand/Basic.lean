@@ -13,6 +13,13 @@ def Batteries.HashMap.values [BEq α] [Hashable α] (hashMap : HashMap α β) : 
 
 namespace Sand
 
+elab "get_version" : term => do
+  let version ←
+    String.trimRight <$> IO.Process.run { cmd := "git", args := #["describe"] }
+  return .lit <| .strVal version
+
+def version : String := get_version
+
 structure TimerId where
   id : Nat
   deriving BEq, Repr, ToJson, FromJson, Hashable

@@ -204,7 +204,7 @@ def envFd : IO (Option UInt32) := OptionT.run do
 def systemdSockFd : UInt32 := 3
 
 def SandDaemon.main (_args : List String) : IO α := do
-  IO.eprintln "Starting Sand daemon."
+  IO.eprintln s!"Starting Sand daemon {Sand.version}"
 
   let fd ← match ← envFd with
   | none => do
