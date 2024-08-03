@@ -171,8 +171,8 @@ def handleCmd (server : Socket) (cmd : Command) : IO Unit := do
   -- Handle response
   match cmd with
   | Command.addTimer timer => do
-    let .ok := resp
-    println! "Timer created for {timer.formatColonSeparated}."
+    let .ok id := resp
+    println! "Timer #{repr id.id} created for {timer.formatColonSeparated}."
   | Command.cancelTimer timerId => match resp with
     | .ok =>
       println! "Timer #{repr timerId.id} cancelled."

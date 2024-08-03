@@ -16,7 +16,7 @@ inductive Command
 
 -- responses to commands sent from server to client
 inductive AddTimerResponse
-  | ok
+  | ok (createdId : TimerId)
   deriving Repr, ToJson, FromJson
 
 inductive ListResponse

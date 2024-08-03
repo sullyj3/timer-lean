@@ -89,7 +89,7 @@ def msg_and_response(msg, sock):
 
 @pytest.mark.parametrize("test_input, expected_output", [
     ('list', {'ok': {'timers': []}}),
-    ({'addTimer': {'duration': {'millis': 60000}}}, 'ok'),
+    ({'addTimer': {'duration': {'millis': 60000}}}, {'ok': {'createdId': {'id': 1}}}),
 ])
 def test_sand_operations(daemon, client_socket, test_input, expected_output):
     response = msg_and_response(test_input, client_socket)
