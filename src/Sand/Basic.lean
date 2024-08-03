@@ -30,13 +30,9 @@ structure TimerId where
 
 def TimerId.fromNat (n : Nat) : TimerId := ⟨n⟩
 
-inductive TimerState
+inductive Timer
   | paused (remaining : Duration)
   | running (due : Moment) (task : Task (Except IO.Error Unit))
-
-structure Timer where
-  id : TimerId -- TODO can we remove this field? (and therefore combine timer and timerstate?)
-  state : TimerState
 
 inductive TimerStateForClient
   | paused (remaining : Duration)
@@ -48,15 +44,15 @@ structure TimerInfoForClient where
   state : TimerStateForClient
   deriving Repr, ToJson, FromJson
 
-def timerForClient (timer : Timer) : TimerInfoForClient :=
-  let state : TimerStateForClient := match timer.state with
+def timerForClient (id : TimerId) (timer : Timer) : TimerInfoForClient :=
+  let state : TimerStateForClient := match timer with
   | .running due _task => .running due
   | .paused remaining => .paused remaining
-  { id := timer.id, state }
+  { id, state }
 
 def timersForClient
   (timers : HashMap TimerId Timer)
-  : Array TimerInfoForClient := timers.values.map timerForClient
+  : Array TimerInfoForClient := timers.toArray.map (λ (a, b) ↦ timerForClient a b)
 
 def nullStdioConfig : IO.Process.StdioConfig := ⟨.null, .null, .null⟩
 def SimpleChild : Type := IO.Process.Child nullStdioConfig

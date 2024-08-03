@@ -1,7 +1,7 @@
 import Sand
 
 def version : IO UInt32 := do
-  println! "Sand version {Sand.version}"
+  println! "Sand {Sand.version}"
   return 0
 
 def main (args : List String) : IO UInt32 := do

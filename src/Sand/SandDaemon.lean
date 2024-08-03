@@ -71,12 +71,11 @@ def pauseTimer
     let timers ← get
     let some timer := timers.find? timerId | do
       return .timerNotFound
-    match timer.state with
+    match timer with
     | .paused _ => return .alreadyPaused
     | .running due task => do
       IO.cancel task
-      let newTimerstate := .paused (remaining := due - clientConnectedTime)
-      let newTimers : Timers := timers.insert timerId {timer with state := newTimerstate}
+      let newTimers : Timers := timers.insert timerId <| .paused (remaining := due - clientConnectedTime)
       set newTimers
       return .ok
 
@@ -86,8 +85,8 @@ def removeTimer (id : TimerId)
   state.timers.atomically do
     let timers ← get
     match timers.find? id with
-    | some {state := timerstate, ..} => do
-      if let .running _due task := timerstate then IO.cancel task
+    | some timer => do
+      if let .running _due task := timer then IO.cancel task
       set <| timers.erase id
       pure .ok
     | none => do
@@ -125,14 +124,12 @@ def resumeTimer (timerId : TimerId)
     let timers ← get
     let some timer := timers.find? timerId | do
       return .timerNotFound
-    match timer.state with
+    match timer with
     | .running _ _ => return .alreadyRunning
     | .paused remaining => do
       let newDueTime : Moment := clientConnectedTime + remaining
       let countdownTask ← (countdown timerId newDueTime).run env |>.asTask .dedicated
-      let newTimerstate := .running newDueTime countdownTask
-      let newTimer := {timer with state := newTimerstate}
-      let timers' : Timers := timers.insert timerId newTimer
+      let timers' : Timers := timers.insert timerId <| .running newDueTime countdownTask
       set timers'
       return .ok
 
@@ -156,8 +153,7 @@ def addTimer (duration : Duration) : CmdHandlerT IO TimerId := do
   let id : TimerId ←
     TimerId.mk <$> state.nextTimerId.atomically (getModify Nat.succ)
   let countdownTask ← (countdown id due).asTask .dedicated
-  let timer : Timer := {id, state := .running due countdownTask}
-
+  let timer : Timer := .running due countdownTask
   state.timers.atomically <| modify (·.insert id timer)
   return id
 
