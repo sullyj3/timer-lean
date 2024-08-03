@@ -113,6 +113,7 @@ partial def countdown (id : TimerId) (due : Moment) : CmdHandlerT IO Unit := do
       | .ok => return
       | .timerNotFound => do
         IO.eprintln s!"BUG: countdown tried to remove nonexistent timer {repr id.id}"
+        return
     if remaining.millis > 30 then
       IO.sleep (remaining.millis/2).toUInt32
     loop
