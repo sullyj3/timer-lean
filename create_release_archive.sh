@@ -5,9 +5,9 @@ if [ ! -f .lake/build/bin/sand ]; then
     exit 1
 fi
 
-# tag=$(git describe --tags --abbrev=0)
-# dir="sand-$tag"
-dir="sand"
+# git describe doesn't work by default in CI, so we use an action for it.
+version=${GIT_DESCRIBE:-$(git describe)}
+dir="sand-$version"
 
 set -x
 
