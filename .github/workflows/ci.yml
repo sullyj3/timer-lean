@@ -12,8 +12,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Git describe
+        id: ghd
+        uses: proudust/gh-describe@v2
       - name: Run Lean Action
         uses: leanprover/lean-action@v1
+        env:
+          GIT_DESCRIBE: ${{ steps.ghd.outputs.describe }}
         with:
           auto-config: "false"
           use-mathlib-cache: "false"
@@ -25,6 +30,7 @@ jobs:
           python-version: '3.x'
       - name: Run integration tests
         run: |
+          echo "Testing $(.lake/build/bin/sand version)"
           python -m pip install --upgrade pip
           pip install pytest
           pytest test_daemon.py
