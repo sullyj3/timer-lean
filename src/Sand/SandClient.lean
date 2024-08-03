@@ -162,7 +162,7 @@ def handleCmd (server : Socket) (cmd : Command) : IO Unit := do
   --   buffer in the common case
   let respStr ← String.fromUTF8! <$> server.recv 10240
   let resp? : Except String (ResponseFor cmd) :=
-    fromJsonResponse? =<< Lean.Json.parse respStr
+    fromJson? =<< Lean.Json.parse respStr
   let .ok resp := resp? | do
     IO.println "Failed to parse message from server:"
     println! "    \"{respStr}\""

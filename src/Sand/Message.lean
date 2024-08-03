@@ -47,15 +47,13 @@ abbrev ResponseFor : Command → Type
   | .pauseTimer  _ => PauseTimerResponse
   | .resumeTimer _ => ResumeTimerResponse
 
-def toJsonResponse {cmd : Command} (resp : ResponseFor cmd) : Lean.Json := by
-  cases cmd <;> exact toJson resp
+instance {cmd : Command} : ToJson (ResponseFor cmd) := by
+  cases cmd <;> exact inferInstance
+
+instance {cmd : Command} : FromJson (ResponseFor cmd) := by
+  cases cmd <;> exact inferInstance
 
 def serializeResponse {cmd : Command} (resp : ResponseFor cmd) : ByteArray :=
-  String.toUTF8 <| toString <| toJsonResponse resp
-
-def fromJsonResponse? {cmd : Command}
-  (resp : Json) : Except String (ResponseFor cmd) := by
-  cases cmd <;> exact fromJson? resp
-
+  String.toUTF8 <| toString <| toJson resp
 
 end Sand
