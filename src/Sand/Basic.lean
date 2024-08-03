@@ -30,22 +30,17 @@ structure TimerId where
 
 def TimerId.fromNat (n : Nat) : TimerId := ⟨n⟩
 
-structure Timer where
-  id : TimerId
-  due : Moment
-  deriving Repr, ToJson, FromJson
-
--- TODO this data model needs improvement
--- currently paused timers retain their outdated due times while they're paused
 inductive TimerState
   | paused (remaining : Duration)
-  | running (task : Task (Except IO.Error Unit))
+  | running (due : Moment) (task : Task (Except IO.Error Unit))
 
--- TODO filthy hack.
--- revisit after reworking timer data model
+structure Timer where
+  id : TimerId -- TODO can we remove this field? (and therefore combine timer and timerstate?)
+  state : TimerState
+
 inductive TimerStateForClient
-  | running (due : Moment)
   | paused (remaining : Duration)
+  | running (due : Moment)
   deriving Repr, ToJson, FromJson
 
 structure TimerInfoForClient where
@@ -53,14 +48,15 @@ structure TimerInfoForClient where
   state : TimerStateForClient
   deriving Repr, ToJson, FromJson
 
+def timerForClient (timer : Timer) : TimerInfoForClient :=
+  let state : TimerStateForClient := match timer.state with
+  | .running due _task => .running due
+  | .paused remaining => .paused remaining
+  { id := timer.id, state }
+
 def timersForClient
-  (timers : HashMap TimerId (Timer × TimerState))
-  : Array TimerInfoForClient :=
-  timers.values.map λ (timer, timerstate) ↦
-    let state : TimerStateForClient := match timerstate with
-    | TimerState.running _ => .running timer.due
-    | .paused remaining => .paused remaining
-    { id := timer.id, state }
+  (timers : HashMap TimerId Timer)
+  : Array TimerInfoForClient := timers.values.map timerForClient
 
 def nullStdioConfig : IO.Process.StdioConfig := ⟨.null, .null, .null⟩
 def SimpleChild : Type := IO.Process.Child nullStdioConfig
