@@ -6,7 +6,15 @@ if [ ! -f .lake/build/bin/sand ]; then
 fi
 
 # git describe doesn't work by default in CI, so we use an action for it.
-version=${GIT_DESCRIBE:-$(git describe)}
+if [ -z "$GIT_DESCRIBE" ]; then
+    echo "Not in CI, running git describe"
+    version="$(git describe)"
+else
+    echo "In CI, getting version from GIT_DESCRIBE"
+    version=$GIT_DESCRIBE
+fi
+
+
 dir="sand-$version"
 
 set -x

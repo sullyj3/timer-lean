@@ -8,10 +8,12 @@ timers from your app launcher/command runner of choice.
 
 ```bash
 $ sand 5m
+Timer created for 00:05:00:000.
 $ sand 1h 30s
+Timer created for 01:00:30:000.
 $ sand ls
-#1 | 00:04:51:856 remaining
-#2 | 01:00:27:686 remaining
+#2 | 01:00:27:313 remaining
+#1 | 00:04:51:340 remaining
 ```
 A sound will play and a desktop notification will be triggered when a timer 
 elapses.
@@ -19,14 +21,6 @@ elapses.
 I use it for remembering to get things out of the oven.
 
 ## Installation
-### Arch linux
-A PKGBUILD is provided on the releases page.
-
-1. Download the PKGBUILD into an empty directory
-2. `makepkg`
-3. `sudo pacman -U <built package>`
-
-### Other distros
 
 1. Make sure you have the dependencies: 
     - systemd
@@ -34,12 +28,11 @@ A PKGBUILD is provided on the releases page.
     - optionally, pulseaudio or wireplumber (for timer notification sounds)
 
 2. Download and extract the latest tarball from the releases page
-3. `cd release`
-4. The install script, `install.sh` is currently only tested on Arch.
+3. The install script, `install_release.sh` is currently only tested on Arch.
    It should work on any distro that follows the FHS. However, I would
    recommend reading it and confirming that it will work correctly on your 
    distro.
-5. `sudo ./install.sh`
+4. inside the release directory, run `sudo ./install_release.sh`
 
 ## Setup
 After installing, you'll need to enable and start the service. 
