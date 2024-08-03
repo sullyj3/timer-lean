@@ -41,7 +41,7 @@ def playTimerSound : IO Unit := do
   -- todo choose most appropriate media player, possibly record a dependency for package
   _ ← Sand.runCmdSimple "paplay" #[soundPath.toString]
 
-def Timers := HashMap TimerId (Timer × TimerState)
+def Timers := HashMap TimerId Timer
   deriving EmptyCollection
 
 def Timers.erase : Timers → TimerId → Timers := HashMap.erase
@@ -69,15 +69,13 @@ def pauseTimer
   let {state, clientConnectedTime, .. } ← read
   state.timers.atomically do
     let timers ← get
-    let some (timer, timerstate) := timers.find? timerId | do
+    let some timer := timers.find? timerId | do
       return .timerNotFound
-    match timerstate with
+    match timer with
     | .paused _ => return .alreadyPaused
-    | .running task => do
+    | .running due task => do
       IO.cancel task
-      let remaining : Duration := timer.due - clientConnectedTime
-      let newTimerstate := .paused remaining
-      let newTimers : Timers := timers.insert timerId (timer, newTimerstate)
+      let newTimers : Timers := timers.insert timerId <| .paused (remaining := due - clientConnectedTime)
       set newTimers
       return .ok
 
@@ -87,8 +85,8 @@ def removeTimer (id : TimerId)
   state.timers.atomically do
     let timers ← get
     match timers.find? id with
-    | some (_, timerstate) => do
-      if let .running task := timerstate then IO.cancel task
+    | some timer => do
+      if let .running _due task := timer then IO.cancel task
       set <| timers.erase id
       pure .ok
     | none => do
@@ -124,16 +122,14 @@ def resumeTimer (timerId : TimerId)
   let env@{state, clientConnectedTime, ..} ← read
   state.timers.atomically do
     let timers ← get
-    let some (timer, timerstate) := timers.find? timerId | do
+    let some timer := timers.find? timerId | do
       return .timerNotFound
-    match timerstate with
-    | .running _ => return .alreadyRunning
+    match timer with
+    | .running _ _ => return .alreadyRunning
     | .paused remaining => do
       let newDueTime : Moment := clientConnectedTime + remaining
       let countdownTask ← (countdown timerId newDueTime).run env |>.asTask .dedicated
-      let newTimerstate := .running countdownTask
-      let newTimer := {timer with due := newDueTime}
-      let timers' : Timers := timers.insert timerId (newTimer, newTimerstate)
+      let timers' : Timers := timers.insert timerId <| .running newDueTime countdownTask
       set timers'
       return .ok
 
@@ -156,10 +152,9 @@ def addTimer (duration : Duration) : CmdHandlerT IO TimerId := do
   let due := clientConnectedTime + duration
   let id : TimerId ←
     TimerId.mk <$> state.nextTimerId.atomically (getModify Nat.succ)
-  let timer : Timer := {id, due}
   let countdownTask ← (countdown id due).asTask .dedicated
-
-  state.timers.atomically <| modify (·.insert id (timer, .running countdownTask))
+  let timer : Timer := .running due countdownTask
+  state.timers.atomically <| modify (·.insert id timer)
   return id
 
 def handleClientCmd (cmd : Command) : CmdHandlerT IO (ResponseFor cmd) := do
