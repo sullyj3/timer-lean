@@ -143,7 +143,7 @@ def DaemonState.initial : IO DaemonState := do
     timers := (← IO.Mutex.new ∅)
   }
 
-def addTimer (duration : Duration) : CmdHandlerT IO Unit := do
+def addTimer (duration : Duration) : CmdHandlerT IO TimerId := do
   let {clientConnectedTime, state, ..} ← read
 
   let msg := s!"Starting timer for {duration.formatColonSeparated}"
@@ -160,13 +160,14 @@ def addTimer (duration : Duration) : CmdHandlerT IO Unit := do
   let countdownTask ← (countdown id due).asTask .dedicated
 
   state.timers.atomically <| modify (·.insert id (timer, .running countdownTask))
+  return id
 
 def handleClientCmd (cmd : Command) : CmdHandlerT IO (ResponseFor cmd) := do
   let {state, ..} ← read
   match cmd with
   | .addTimer duration => do
-    addTimer duration
-    return .ok
+    let id ← addTimer duration
+    return .ok id
   | .cancelTimer which => removeTimer which
   | .list => do
     let timers ← state.timers.atomically get
