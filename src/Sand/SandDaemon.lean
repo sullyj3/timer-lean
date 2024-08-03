@@ -187,10 +187,6 @@ def handleClient : CmdHandlerT IO Unit := do
 
 partial def forever (act : IO α) : IO β := act *> forever act
 
-inductive EnvFdError
-  | varNotFound
-  | couldntParse
-
 def envFd : IO (Option UInt32) := OptionT.run do
   let str ← OptionT.mk <| IO.getEnv "SAND_SOCKFD"
   let some n := str.toNat?
