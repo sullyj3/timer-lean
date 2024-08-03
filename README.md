@@ -42,7 +42,10 @@ $ systemctl --user daemon-reload
 $ systemctl --user enable --now sand.socket
 ```
 
-To see notifications, you'll need a libnotify compatible notification server. I use [swaync](https://github.com/ErikReider/SwayNotificationCenter).
+To see notifications, you'll need a libnotify compatible notification server. 
+Desktop managers like Gnome and Plasma generally come with this built in, but 
+if you use a stand alone window manager you'll need to choose and install one 
+yourself. You can find a list of potential options [here](https://wiki.archlinux.org/title/Desktop_notifications#Standalone).
 
 You can type 
 ```console
