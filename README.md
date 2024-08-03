@@ -6,7 +6,7 @@ Command line countdown timers that don't take up a terminal.
 without having to worry about keeping the terminal open. You can also start 
 timers from your app launcher/command runner of choice.
 
-```bash
+```console
 $ sand 5m
 Timer created for 00:05:00:000.
 $ sand 1h 30s
@@ -37,7 +37,7 @@ I use it for remembering to get things out of the oven.
 ## Setup
 After installing, you'll need to enable and start the service. 
 
-```bash
+```console
 $ systemctl --user daemon-reload
 $ systemctl --user enable --now sand.socket
 ```
@@ -45,7 +45,7 @@ $ systemctl --user enable --now sand.socket
 To see notifications, you'll need a libnotify compatible notification server. I use [swaync](https://github.com/ErikReider/SwayNotificationCenter).
 
 You can type 
-```bash
+```console
 $ sand 0
 ```
 to check everything's working correctly.
@@ -54,7 +54,7 @@ to check everything's working correctly.
 You'll need a lean toolchain, which can be installed using [elan](https://github.com/leanprover/elan). 
 
 Once that's done, run
-```bash
+```console
 $ lake build
 ```
 
