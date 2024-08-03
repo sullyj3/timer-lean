@@ -69,8 +69,7 @@ def pauseTimer
   let {state, clientConnectedTime, .. } ← read
   state.timers.atomically do
     let timers ← get
-    let some timer := timers.find? timerId | do
-      return .timerNotFound
+    let some timer := timers.find? timerId | return .timerNotFound
     match timer with
     | .paused _ => return .alreadyPaused
     | .running due task => do
@@ -84,13 +83,10 @@ def removeTimer (id : TimerId)
   let {state, ..} ← read
   state.timers.atomically do
     let timers ← get
-    match timers.find? id with
-    | some timer => do
-      if let .running _due task := timer then IO.cancel task
-      set <| timers.erase id
-      pure .ok
-    | none => do
-      pure .timerNotFound
+    let some timer := timers.find? id | return .timerNotFound
+    if let .running _due task := timer then IO.cancel task
+    set <| timers.erase id
+    pure .ok
 
 -- IO.sleep isn't guaranteed to be on time, I find it's usually about 10ms late
 -- Therefore, we repeatedly sleep while there's enough time left that we can
@@ -123,8 +119,7 @@ def resumeTimer (timerId : TimerId)
   let env@{state, clientConnectedTime, ..} ← read
   state.timers.atomically do
     let timers ← get
-    let some timer := timers.find? timerId | do
-      return .timerNotFound
+    let some timer := timers.find? timerId | return .timerNotFound
     match timer with
     | .running _ _ => return .alreadyRunning
     | .paused remaining => do
