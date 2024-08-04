@@ -33,12 +33,23 @@ def timerForClient (id : TimerId) (timer : Timer) : TimerInfoForClient :=
   | .paused remaining => .paused remaining
   { id, state }
 
-def timersForClient
-  (timers : HashMap TimerId Timer)
-  : Array TimerInfoForClient := timers.toArray.map (λ (a, b) ↦ timerForClient a b)
+structure Timers where
+  timers : HashMap TimerId Timer
 
--- TODO make abstract to allow switching representations more easily
-def Timers := HashMap TimerId Timer
-  deriving EmptyCollection
+instance : EmptyCollection Timers where
+  emptyCollection := ⟨∅⟩
 
-def Timers.erase : Timers → TimerId → Timers := HashMap.erase
+namespace Timers
+def erase : Timers → TimerId → Timers
+  | ⟨timers⟩, id => ⟨timers.erase id⟩
+
+def find? : Timers → TimerId → Option Timer
+  | ⟨timers⟩ => timers.find?
+
+def insert : Timers → TimerId → Timer → Timers
+  | ⟨timers⟩, k, v => ⟨timers.insert k v⟩
+
+def forClient : Timers → Array TimerInfoForClient
+  | ⟨timers⟩ => timers.toArray.map (λ (a, b) ↦ timerForClient a b)
+
+end Timers

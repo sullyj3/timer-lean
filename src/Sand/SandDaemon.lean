@@ -155,7 +155,7 @@ def handleClientCmd (cmd : Command) : CmdHandlerT IO (ResponseFor cmd) := do
   | .cancelTimer which => removeTimer which
   | .list => do
     let timers ← state.timers.atomically get
-    return .ok <| Sand.timersForClient timers
+    return .ok timers.forClient
   | .pauseTimer which => pauseTimer which
   | .resumeTimer which => resumeTimer which
 
