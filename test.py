@@ -85,13 +85,20 @@ def run_client(sock_path, args):
     return (status, output)
 
 class TestClient:
-    def test_client_list(self, daemon):
-
+    def test_list_none(self, daemon):
         (status, output) = run_client(SOCKET_PATH, ["list"])
-            
         assert status == 0, f"Client exited with status {status}"
         expected_stdout = "No running timers."
         assert output.strip() == expected_stdout
+
+    def test_add(self, daemon):
+        (status, output) = run_client(SOCKET_PATH, ["10m"])
+        assert status == 0, f"Client exited with status {status}"
+        expected_stdout = "Timer #1 created for 00:10:00:000."
+        assert output.strip() == expected_stdout
+    
+
+    
 
 @pytest.fixture
 def client_socket():
