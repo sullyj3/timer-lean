@@ -113,6 +113,8 @@ def msg_and_response(msg):
     response = json.loads(resp_bytes.decode('utf-8'))
     return response
 
+# Since the amount of time elapsed is not deterministic, for most tests we want
+# to ignore the specific amount of time elapsed/remaining.
 IGNORE_MILLIS = r".+\['millis'\]$"
 
 class TestDaemon:
@@ -155,7 +157,10 @@ class TestDaemon:
         expected_shape = {
             'ok': {
                 'timers': [
-                    {'id': {'id': 1}, 'state': {'paused': {'remaining': {'millis': 0}}}}
+                    {
+                        'id': {'id': 1},
+                        'state': {'paused': {'remaining': {'millis': 0}}}
+                    }
                 ]
             }
         }
@@ -173,7 +178,10 @@ class TestDaemon:
         expected_shape = {
             'ok': {
                 'timers': [
-                    {'id': {'id': 1}, 'state': {'running': {'due': {'millis': 0}}}}
+                    {
+                        'id': {'id': 1},
+                        'state': {'running': {'due': {'millis': 0}}}
+                    }
                 ]
             }
         }
@@ -190,11 +198,7 @@ class TestDaemon:
         run_client(SOCKET_PATH, ["cancel", "1"])
 
         response = msg_and_response('list')
-        expected_shape = {
-            'ok': {
-                'timers': []
-            }
-        }
+        expected_shape = { 'ok': { 'timers': [] } }
         diff = DeepDiff(
             expected_shape,
             response,
@@ -208,9 +212,9 @@ Hopefully we'll be able to make the warn_threshold the fail_threshold
 '''
 def test_executable_size():
     exe_size = os.path.getsize("./.lake/build/bin/sand")
-    exe_size_mb = exe_size / 1_000_000
     warn_threshold = 15_000_000
     if exe_size > warn_threshold:
+        exe_size_mb = exe_size / 1_000_000
         warnings.warn(f"Sand executable size is {exe_size_mb:.2f}MB")
     
     fail_threshold = 100_000_000
