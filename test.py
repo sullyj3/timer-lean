@@ -147,7 +147,7 @@ class TestDaemon:
         )
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
 
-    def test_pause(self, daemon):
+    def test_pause_resume(self, daemon):
         run_client(SOCKET_PATH, ["10m"])
         run_client(SOCKET_PATH, ["pause", "1"])
 
@@ -169,17 +169,7 @@ class TestDaemon:
 
         run_client(SOCKET_PATH, ["resume", "1"])
 
-
-        '''
-        TODO test resume
-        need a new socket connection here (or we should make the daemon able 
-        to handle multiple commands in a single connection)
-
-        need to rework the client_socket fixture
-        '''
-
-        '''
-        response = msg_and_response('list', client_socket)
+        response = msg_and_response('list')
         expected_shape = {
             'ok': {
                 'timers': [
@@ -194,7 +184,6 @@ class TestDaemon:
             ignore_order=True
         )
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
-        '''
 
     def test_cancel(self, daemon):
         run_client(SOCKET_PATH, ["10m"])
