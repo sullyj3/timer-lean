@@ -84,13 +84,14 @@ def run_client(sock_path, args):
     output = client_proc.stdout.read().decode('utf-8')
     return (status, output)
 
-def test_client_list(daemon):
+class TestClient:
+    def test_client_list(self, daemon):
 
-    (status, output) = run_client(SOCKET_PATH, ["list"])
-        
-    assert status == 0, f"Client exited with status {status}"
-    expected_stdout = "No running timers."
-    assert output.strip() == expected_stdout
+        (status, output) = run_client(SOCKET_PATH, ["list"])
+            
+        assert status == 0, f"Client exited with status {status}"
+        expected_stdout = "No running timers."
+        assert output.strip() == expected_stdout
 
 @pytest.fixture
 def client_socket():
