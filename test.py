@@ -11,10 +11,10 @@ import os
 import fcntl
 import subprocess
 import json
-import pytest
 import warnings
-
 from contextlib import contextmanager
+
+import pytest
 
 SOCKET_PATH = "./test.sock"
 
