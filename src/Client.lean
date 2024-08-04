@@ -121,8 +121,11 @@ def runtimeDir : IO FilePath := do
     IO.Process.exit 1
   return dir
 
-def getSockPath : IO FilePath :=
-  runtimeDir <&> (· / "sand.sock")
+def getSockPath : IO FilePath := do
+  if let some path ← IO.getEnv "SAND_SOCK_PATH" then
+    pure path
+  else
+    runtimeDir <&> (· / "sand.sock")
 
 def Client.main (args : List String) : IO UInt32 := do
   let some cmd := CLI.parseArgs args | do

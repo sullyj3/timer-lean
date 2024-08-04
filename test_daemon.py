@@ -72,6 +72,26 @@ def daemon(daemon_socket):
         daemon_proc.wait()
         print(f"-- Daemon terminated")
 
+def run_client(sock_path, args):
+    command = "./.lake/build/bin/sand"
+
+    client_proc = subprocess.Popen(
+        [command] + args,
+        env={"SAND_SOCK_PATH": sock_path},
+        stdout=subprocess.PIPE,
+    )
+    status = client_proc.wait()
+    output = client_proc.stdout.read().decode('utf-8')
+    return (status, output)
+
+def test_client_list(daemon):
+
+    (status, output) = run_client(SOCKET_PATH, ["list"])
+        
+    assert status == 0, f"Client exited with status {status}"
+    expected_stdout = "No running timers."
+    assert output.strip() == expected_stdout
+
 @pytest.fixture
 def client_socket():
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client_sock:
