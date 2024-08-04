@@ -145,3 +145,6 @@ def handleClient (env : CmdHandlerEnv) : IO Unit := ReaderT.run (r := env) do
 
   let resp ← handleClientCmd cmd
   _ ← client.send <| serializeResponse resp
+
+  -- TODO accept messages in loop, allow client to close. Requires message framing
+  client.close
