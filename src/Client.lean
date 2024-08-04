@@ -17,8 +17,6 @@ def withUnixSocket path (action : Socket → IO a) := do
 
 open System (FilePath)
 
-def unlines := String.intercalate "\n"
-
 def showTimer (now : Moment) : TimerInfoForClient → String
   | {id, state} =>
     match state with
@@ -29,6 +27,8 @@ def showTimer (now : Moment) : TimerInfoForClient → String
     | .paused remaining =>
       let formatted := remaining.formatColonSeparated
       s!"#{repr id.id} | {formatted} remaining (PAUSED)"
+
+def unlines := String.intercalate "\n"
 
 def showTimers (timers : List TimerInfoForClient) (now : Moment) : String :=
   if timers.isEmpty then
