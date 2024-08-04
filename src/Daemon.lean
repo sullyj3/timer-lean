@@ -2,10 +2,11 @@ import «Sand».Basic
 import «Sand».Time
 import «Sand».Message
 import «Sand».Timers
+
 import «Daemon».Basic
 import «Daemon».HandleCommand
 
-open System (FilePath)
+open System FilePath
 
 open Sand
 
@@ -16,29 +17,29 @@ private def xdgDataHome : OptionT BaseIO FilePath :=
     home            := FilePath.mk <$> (OptionT.mk <| IO.getEnv "HOME"         )
     dataHomeDefault := home <&> (· / ".local/share")
 
-def dataDir : OptionT BaseIO FilePath := xdgDataHome <&> (· / "sand")
+private def dataDir : OptionT BaseIO FilePath := xdgDataHome <&> (· / "sand")
 
-def xdgSoundLocation : OptionT BaseIO FilePath := do
+private def xdgSoundLocation : OptionT BaseIO FilePath := do
   let dir ← dataDir
   let soundPath := dir / "timer_sound.opus"
   guard (← soundPath.pathExists)
   pure soundPath
 
-def usrshareSoundLocation : OptionT BaseIO FilePath := do
+private def usrshareSoundLocation : OptionT BaseIO FilePath := do
   let path : FilePath := "/usr/share/sand/timer_sound.opus"
   guard (← path.pathExists)
   pure path
 
-partial def forever (act : IO α) : IO β := act *> forever act
+private partial def forever (act : IO α) : IO β := act *> forever act
 
-def envFd : IO (Option UInt32) := OptionT.run do
+private def envFd : IO (Option UInt32) := OptionT.run do
   let str ← OptionT.mk <| IO.getEnv "SAND_SOCKFD"
   let some n := str.toNat?
     | throwThe IO.Error <|
       IO.userError "Error: Found SAND_SOCKFD but couldn't parse it as a string"
   return n.toUInt32
 
-def systemdSockFd : UInt32 := 3
+private def systemdSockFd : UInt32 := 3
 
 def Daemon.main (_args : List String) : IO α := do
   IO.eprintln s!"Starting Sand daemon {Sand.version}"
