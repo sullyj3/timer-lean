@@ -21,48 +21,49 @@ SOCKET_PATH = "./test.sock"
 '''
 Remove the socket file if it already exists
 '''
-def ensure_socket_deleted():
+def ensure_deleted(path):
     try:
-        os.unlink(SOCKET_PATH)
+        os.unlink(path)
     except FileNotFoundError:
         pass
 
-'''
-Ensures when the context manager exits:
-- the daemon process is terminated 
-- the socket file is removed
+@pytest.fixture
+def daemon_socket():
+    ensure_deleted(SOCKET_PATH)
 
-(assuming we're not killed with SIGKILL)
-'''
-@pytest.fixture(scope='module')
-def daemon():
-    ensure_socket_deleted()
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+            sock.bind(SOCKET_PATH)
+            sock.listen(1)
+            
+            flags = fcntl.fcntl(sock.fileno(), fcntl.F_GETFD)
+            flags |= fcntl.FD_CLOEXEC
+            fcntl.fcntl(sock.fileno(), fcntl.F_SETFD, flags)
 
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    sock.bind(SOCKET_PATH)
-    sock.listen(1)
+            print(f"-- Socket created at {SOCKET_PATH} on fd {sock.fileno()}")
+            yield sock
+    finally:
+        print(f"-- Removing socket file {SOCKET_PATH}")
+        ensure_deleted(SOCKET_PATH)
 
-    flags = fcntl.fcntl(sock.fileno(), fcntl.F_GETFD)
-    flags |= fcntl.FD_CLOEXEC
-    fcntl.fcntl(sock.fileno(), fcntl.F_SETFD, flags)
-
-    print(f"-- Socket created at {SOCKET_PATH} on fd {sock.fileno()}")
+@pytest.fixture
+def daemon(daemon_socket):
 
     daemon_command = "./.lake/build/bin/sand"
     daemon_args = ["daemon"]
+    sock_fd = daemon_socket.fileno()
     try:
         daemon_proc = subprocess.Popen(
             [daemon_command] + daemon_args,
-            pass_fds=(sock.fileno(),),
-            env={"SAND_SOCKFD": str(sock.fileno())},
+            pass_fds=(sock_fd,),
+            env={"SAND_SOCKFD": str(sock_fd)},
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
 
         print(f"-- Daemon started with PID {daemon_proc.pid}")
         # Close the socket in the parent process
-        sock.close()
-
+        daemon_socket.close()
         yield daemon_proc
     finally:
         print(f"-- Terminating daemon with PID {daemon_proc.pid}")
@@ -70,10 +71,8 @@ def daemon():
         print(f"-- Waiting for daemon to terminate")
         daemon_proc.wait()
         print(f"-- Daemon terminated")
-        print(f"-- Removing socket file {SOCKET_PATH}")
-        ensure_socket_deleted()
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def client_socket():
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client_sock:
         client_sock.connect(SOCKET_PATH)
