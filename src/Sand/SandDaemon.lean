@@ -46,6 +46,17 @@ instance monadLiftReaderT [MonadLift m n] : MonadLift (ReaderT σ m) (ReaderT σ
 def ReaderT.asTask (action : ReaderT σ IO α) (prio := Task.Priority.default) : ReaderT σ IO (Task (Except IO.Error α)) :=
   controlAt IO λ runInBase ↦ (runInBase action).asTask prio
 
+def Except.get : Except α α → α
+  | ok x => x
+  | error x => x
+
+/-- Run an ExceptT that returns and throws the same type.
+    This is useful because returning is limited to the enclosing `do`,
+    whereas `throw` propagates until it's handled
+-/
+def runExceptBoth [Monad m] (action : ExceptT α m α) : m α :=
+  Except.get <$> action.run
+
 def playTimerSound : CmdHandlerT IO Unit := do
   let {soundPath?, ..} ← read
   let some soundPath := soundPath? | return ()
@@ -54,13 +65,13 @@ def playTimerSound : CmdHandlerT IO Unit := do
 
 def pauseTimer
   (timerId : TimerId)
-  : CmdHandlerT BaseIO PauseTimerResponse := do
+  : CmdHandlerT BaseIO PauseTimerResponse := runExceptBoth do
   let {state, clientConnectedTime, .. } ← read
   state.timers.atomically do
     let timers ← get
-    let some timer := timers.find? timerId | return .timerNotFound
+    let some timer := timers.find? timerId | throw .timerNotFound
     match timer with
-    | .paused _ => return .alreadyPaused
+    | .paused _ => throw .alreadyPaused
     | .running due task => do
       IO.cancel task
       let newTimers : Timers := timers.insert timerId <| .paused (remaining := due - clientConnectedTime)
@@ -68,11 +79,11 @@ def pauseTimer
       return .ok
 
 def removeTimer (id : TimerId)
-  : CmdHandlerT BaseIO CancelTimerResponse := do
+  : CmdHandlerT BaseIO CancelTimerResponse := runExceptBoth do
   let {state, ..} ← read
   state.timers.atomically do
     let timers ← get
-    let some timer := timers.find? id | return .timerNotFound
+    let some timer := timers.find? id | throw .timerNotFound
     if let .running _due task := timer then IO.cancel task
     set <| timers.erase id
     pure .ok
@@ -104,13 +115,13 @@ partial def countdown (id : TimerId) (due : Moment) : CmdHandlerT IO Unit := do
     loop
 
 def resumeTimer (timerId : TimerId)
-  : CmdHandlerT BaseIO ResumeTimerResponse := do
+  : CmdHandlerT BaseIO ResumeTimerResponse := runExceptBoth do
   let env@{state, clientConnectedTime, ..} ← read
   state.timers.atomically do
     let timers ← get
-    let some timer := timers.find? timerId | return .timerNotFound
+    let some timer := timers.find? timerId | throw .timerNotFound
     match timer with
-    | .running _ _ => return .alreadyRunning
+    | .running _ _ => throw .alreadyRunning
     | .paused remaining => do
       let newDueTime : Moment := clientConnectedTime + remaining
       let countdownTask ← (countdown timerId newDueTime).run env |>.asTask .dedicated
@@ -124,7 +135,7 @@ def DaemonState.initial : IO DaemonState := do
     timers := (← IO.Mutex.new ∅)
   }
 
-def addTimer (duration : Duration) : CmdHandlerT IO TimerId := do
+def addTimer (duration : Duration) : CmdHandlerT IO AddTimerResponse := do
   let {clientConnectedTime, state, ..} ← read
 
   let msg := s!"Starting timer for {duration.formatColonSeparated}"
@@ -140,18 +151,17 @@ def addTimer (duration : Duration) : CmdHandlerT IO TimerId := do
   let countdownTask ← (countdown id due).asTask .dedicated
   let timer : Timer := .running due countdownTask
   state.timers.atomically <| modify (·.insert id timer)
-  return id
+  return .ok id
 
-def handleClientCmd (cmd : Command) : CmdHandlerT IO (ResponseFor cmd) := do
+def list : CmdHandlerT BaseIO ListResponse := do
   let {state, ..} ← read
-  match cmd with
-  | .addTimer duration => do
-    let id ← addTimer duration
-    return .ok id
+  let timers ← state.timers.atomically get
+  return .ok timers.forClient
+
+def handleClientCmd : (cmd : Command) → CmdHandlerT IO (ResponseFor cmd)
+  | .addTimer duration => addTimer duration
   | .cancelTimer which => removeTimer which
-  | .list => do
-    let timers ← state.timers.atomically get
-    return .ok timers.forClient
+  | .list => list
   | .pauseTimer which => pauseTimer which
   | .resumeTimer which => resumeTimer which
 
