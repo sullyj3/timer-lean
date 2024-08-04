@@ -1,12 +1,9 @@
 import «Sand».Basic
 import «Sand».Time
 import «Sand».Message
-import Batteries
 
 open System (FilePath)
-open Lean (Json ToJson FromJson toJson fromJson?)
-
-open Batteries (HashMap)
+open Lean (HashMap Json ToJson FromJson toJson fromJson?)
 
 open Sand
 

@@ -1,11 +1,9 @@
 import Lean
 import Socket
-import Batteries
 import «Sand».Time
 
-open Lean (ToJson FromJson toJson)
+open Lean (HashMap ToJson FromJson toJson)
 open System (FilePath)
-open Batteries (HashMap)
 open Sand (Moment)
 
 def Batteries.HashMap.values [BEq α] [Hashable α] (hashMap : HashMap α β) : Array β :=
