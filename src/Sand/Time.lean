@@ -1,4 +1,4 @@
-import Lean
+import Lean.Data.Json.FromToJson
 
 open Lean (ToJson FromJson toJson)
 

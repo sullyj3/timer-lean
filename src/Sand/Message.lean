@@ -1,4 +1,4 @@
-import Lean
+import Lean.Data.Json.Basic
 import «Sand».Basic
 
 open Lean (Json ToJson FromJson toJson fromJson?)
