@@ -1,9 +1,10 @@
 import «Sand».Basic
 import «Sand».Time
 import «Sand».Message
+import «Sand».Timers
 
 open System (FilePath)
-open Lean (HashMap Json ToJson FromJson toJson fromJson?)
+open Lean (Json ToJson FromJson toJson fromJson?)
 
 open Sand
 
@@ -37,11 +38,6 @@ def playTimerSound : IO Unit := do
 
   -- todo choose most appropriate media player, possibly record a dependency for package
   _ ← Sand.runCmdSimple "paplay" #[soundPath.toString]
-
-def Timers := HashMap TimerId Timer
-  deriving EmptyCollection
-
-def Timers.erase : Timers → TimerId → Timers := HashMap.erase
 
 structure DaemonState where
   nextTimerId : IO.Mutex Nat
