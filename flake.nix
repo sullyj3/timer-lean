@@ -12,6 +12,7 @@
       buildInputs = [
         (pkgs.python3.withPackages (python-pkgs: [
           python-pkgs.pytest
+          python-pkgs.deepdiff
         ]))
       ];
     };

@@ -13,8 +13,10 @@ import subprocess
 import json
 import warnings
 from contextlib import contextmanager
+from pprint import pformat
 
 import pytest
+from deepdiff import DeepDiff
 
 SOCKET_PATH = "./test.sock"
 
@@ -96,9 +98,32 @@ class TestClient:
         assert status == 0, f"Client exited with status {status}"
         expected_stdout = "Timer #1 created for 00:10:00:000."
         assert output.strip() == expected_stdout
-    
 
-    
+class TestDaemon:
+    def test_list(self, daemon, client_socket):
+        run_client(SOCKET_PATH, ["10m"])
+        run_client(SOCKET_PATH, ["20m"])
+        
+        msg = 'list'
+        response = msg_and_response(msg, client_socket)
+
+        expected_shape = {
+            'ok': {
+                'timers': [
+                    {'id': {'id': 2}, 'state': {'running': {'due': {'millis': 0 }}}},
+                    {'id': {'id': 1}, 'state': {'running': {'due': {'millis': 0 }}}},
+                ]
+            }
+        }
+        
+        exclude = [
+            "root['ok']['timers'][0]['state']['running']['due']['millis']",
+            "root['ok']['timers'][1]['state']['running']['due']['millis']"
+        ]
+
+        diff = DeepDiff(expected_shape, response, exclude_paths=exclude, ignore_order=True)
+        assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
+
 
 @pytest.fixture
 def client_socket():
