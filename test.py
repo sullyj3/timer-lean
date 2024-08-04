@@ -99,9 +99,32 @@ class TestClient:
         expected_stdout = "Timer #1 created for 00:10:00:000."
         assert output.strip() == expected_stdout
 
+@pytest.fixture
+def client_socket():
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client_sock:
+        client_sock.connect(SOCKET_PATH)
+        yield client_sock
+
+def msg_and_response(msg, sock):
+    msg_bytes = bytes(json.dumps(msg), encoding='utf-8')
+
+    sock.send(msg_bytes)
+    resp_bytes = sock.recv(1024)
+
+    response = json.loads(resp_bytes.decode('utf-8'))
+    return response
+
 IGNORE_MILLIS = r".+\['millis'\]$"
 
 class TestDaemon:
+    def test_add(self, daemon, client_socket):
+        msg = {'addTimer': {'duration': {'millis': 60000}}} 
+        expected = {'ok': {'createdId': {'id': 1}}}
+
+        response = msg_and_response(msg, client_socket)
+        diff = DeepDiff(expected, response, ignore_order=True)
+        assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
+
     def test_list(self, daemon, client_socket):
         run_client(SOCKET_PATH, ["10m"])
         run_client(SOCKET_PATH, ["20m"])
@@ -190,29 +213,6 @@ class TestDaemon:
             ignore_order=True
         )
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
-
-@pytest.fixture
-def client_socket():
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client_sock:
-        client_sock.connect(SOCKET_PATH)
-        yield client_sock
-
-def msg_and_response(msg, sock):
-    msg_bytes = bytes(json.dumps(msg), encoding='utf-8')
-
-    sock.send(msg_bytes)
-    resp_bytes = sock.recv(1024)
-
-    response = json.loads(resp_bytes.decode('utf-8'))
-    return response
-
-@pytest.mark.parametrize("test_input, expected_output", [
-    ('list', {'ok': {'timers': []}}),
-    ({'addTimer': {'duration': {'millis': 60000}}}, {'ok': {'createdId': {'id': 1}}}),
-])
-def test_sand_operations(daemon, client_socket, test_input, expected_output):
-    response = msg_and_response(test_input, client_socket)
-    assert response == expected_output, f"Test failed. Expected {expected_output}, got {response}"
 
 '''
 Need to get this down. I think by eliminating any `import Lean`.
