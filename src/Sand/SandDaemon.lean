@@ -28,17 +28,6 @@ def usrshareSoundLocation : OptionT BaseIO FilePath := do
   guard (← path.pathExists)
   pure path
 
--- TODO we should probably just load this once at startup, rather than
--- every time we attempt to play sound
-def playTimerSound : IO Unit := do
-  let soundPath? ← liftM (xdgSoundLocation <|> usrshareSoundLocation).run
-  let some soundPath := soundPath? | do
-    IO.eprintln "Warning: failed to locate notification sound. Audio will not work"
-    return ()
-
-  -- todo choose most appropriate media player, possibly record a dependency for package
-  _ ← Sand.runCmdSimple "paplay" #[soundPath.toString]
-
 structure DaemonState where
   nextTimerId : IO.Mutex Nat
   timers : IO.Mutex Timers
@@ -47,6 +36,7 @@ structure CmdHandlerEnv where
   state : DaemonState
   client : Socket
   clientConnectedTime : Moment
+  soundPath? : Option FilePath
 
 abbrev CmdHandlerT (m : Type → Type) : Type → Type := ReaderT CmdHandlerEnv m
 
@@ -55,6 +45,12 @@ instance monadLiftReaderT [MonadLift m n] : MonadLift (ReaderT σ m) (ReaderT σ
 
 def ReaderT.asTask (action : ReaderT σ IO α) (prio := Task.Priority.default) : ReaderT σ IO (Task (Except IO.Error α)) :=
   controlAt IO λ runInBase ↦ (runInBase action).asTask prio
+
+def playTimerSound : CmdHandlerT IO Unit := do
+  let {soundPath?, ..} ← read
+  let some soundPath := soundPath? | return ()
+  -- todo look into playing the audio ourselves
+  _ ← Sand.runCmdSimple "paplay" #[soundPath.toString]
 
 def pauseTimer
   (timerId : TimerId)
@@ -198,11 +194,15 @@ def SandDaemon.main (_args : List String) : IO α := do
     IO.eprintln s!"Error creating socket from file descriptor {fd}."
     throw err
 
+  let soundPath? ← liftM (xdgSoundLocation <|> usrshareSoundLocation).run
+  if let none := soundPath? then
+    IO.eprintln "Warning: failed to locate notification sound. Audio will not work"
+
   let state ← DaemonState.initial
   IO.eprintln s!"Sand daemon started. listening on fd {fd}"
   forever do
     let (client, _clientAddr) ← sock.accept
     let _tsk ← IO.asTask (prio := .dedicated) <| do
       let clientConnectedTime ← Moment.mk <$> IO.monoMsNow
-      let env := {state, client, clientConnectedTime}
+      let env := {state, client, clientConnectedTime, soundPath?}
       handleClient.run env
