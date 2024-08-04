@@ -2,8 +2,8 @@ import «Sand».Basic
 import «Sand».Time
 import «Sand».Message
 import «Sand».Timers
-import «Sand».SandDaemon.Basic
-import «Sand».SandDaemon.HandleCommand
+import «Daemon».Basic
+import «Daemon».HandleCommand
 
 open System (FilePath)
 
@@ -40,7 +40,7 @@ def envFd : IO (Option UInt32) := OptionT.run do
 
 def systemdSockFd : UInt32 := 3
 
-def SandDaemon.main (_args : List String) : IO α := do
+def Daemon.main (_args : List String) : IO α := do
   IO.eprintln s!"Starting Sand daemon {Sand.version}"
 
   let fd ← match ← envFd with

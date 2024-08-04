@@ -238,7 +238,7 @@ def runtimeDir : IO FilePath := do
 def getSockPath : IO FilePath :=
   runtimeDir <&> (· / "sand.sock")
 
-def SandClient.main (args : List String) : IO UInt32 := do
+def Client.main (args : List String) : IO UInt32 := do
   let some cmd := parseArgs args | do
     IO.println usage
     IO.Process.exit 1

@@ -1,5 +1,5 @@
 import «Sand».Message
-import «Sand».SandDaemon.Basic
+import «Daemon».Basic
 
 open System (FilePath)
 open Sand
