@@ -99,13 +99,14 @@ class TestClient:
         expected_stdout = "Timer #1 created for 00:10:00:000."
         assert output.strip() == expected_stdout
 
+IGNORE_MILLIS = r".+\['millis'\]$"
+
 class TestDaemon:
     def test_list(self, daemon, client_socket):
         run_client(SOCKET_PATH, ["10m"])
         run_client(SOCKET_PATH, ["20m"])
         
-        msg = 'list'
-        response = msg_and_response(msg, client_socket)
+        response = msg_and_response('list', client_socket)
 
         expected_shape = {
             'ok': {
@@ -119,11 +120,76 @@ class TestDaemon:
         diff = DeepDiff(
             expected_shape,
             response,
-            exclude_regex_paths=r".+\['due'\]\['millis'\]$",
+            exclude_regex_paths=IGNORE_MILLIS,
             ignore_order=True
         )
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
 
+    def test_pause(self, daemon, client_socket):
+        run_client(SOCKET_PATH, ["10m"])
+        run_client(SOCKET_PATH, ["pause", "1"])
+
+        response = msg_and_response('list', client_socket)
+        expected_shape = {
+            'ok': {
+                'timers': [
+                    {'id': {'id': 1}, 'state': {'paused': {'remaining': {'millis': 0}}}}
+                ]
+            }
+        }
+        diff = DeepDiff(
+            expected_shape,
+            response,
+            exclude_regex_paths=IGNORE_MILLIS,
+            ignore_order=True
+        )
+        assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
+
+        run_client(SOCKET_PATH, ["resume", "1"])
+
+
+        '''
+        TODO test resume
+        need a new socket connection here (or we should make the daemon able 
+        to handle multiple commands in a single connection)
+
+        need to rework the client_socket fixture
+        '''
+
+        '''
+        response = msg_and_response('list', client_socket)
+        expected_shape = {
+            'ok': {
+                'timers': [
+                    {'id': {'id': 1}, 'state': {'running': {'due': {'millis': 0}}}}
+                ]
+            }
+        }
+        diff = DeepDiff(
+            expected_shape,
+            response,
+            exclude_regex_paths=IGNORE_MILLIS,
+            ignore_order=True
+        )
+        assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
+        '''
+
+    def test_cancel(self, daemon, client_socket):
+        run_client(SOCKET_PATH, ["10m"])
+        run_client(SOCKET_PATH, ["cancel", "1"])
+
+        response = msg_and_response('list', client_socket)
+        expected_shape = {
+            'ok': {
+                'timers': []
+            }
+        }
+        diff = DeepDiff(
+            expected_shape,
+            response,
+            ignore_order=True
+        )
+        assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
 
 @pytest.fixture
 def client_socket():
