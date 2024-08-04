@@ -12,6 +12,7 @@ import fcntl
 import subprocess
 import json
 import pytest
+import warnings
 
 from contextlib import contextmanager
 
@@ -94,6 +95,20 @@ def msg_and_response(msg, sock):
 def test_sand_operations(daemon, client_socket, test_input, expected_output):
     response = msg_and_response(test_input, client_socket)
     assert response == expected_output, f"Test failed. Expected {expected_output}, got {response}"
+
+'''
+Need to get this down. I think by eliminating any `import Lean`.
+Hopefully we'll be able to make the warn_threshold the fail_threshold
+'''
+def test_executable_size():
+    exe_size = os.path.getsize("./.lake/build/bin/sand")
+    exe_size_mb = exe_size / 1_000_000
+    warn_threshold = 15_000_000
+    if exe_size > warn_threshold:
+        warnings.warn(f"Sand executable size is {exe_size_mb:.2f}MB")
+    
+    fail_threshold = 100_000_000
+    assert exe_size < fail_threshold, f"Sand executable size is {exe_size_mb:.2f}MB"
 
 if __name__ == "__main__":
     pytest.main([__file__])
