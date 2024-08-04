@@ -116,12 +116,12 @@ class TestDaemon:
             }
         }
         
-        exclude = [
-            "root['ok']['timers'][0]['state']['running']['due']['millis']",
-            "root['ok']['timers'][1]['state']['running']['due']['millis']"
-        ]
-
-        diff = DeepDiff(expected_shape, response, exclude_paths=exclude, ignore_order=True)
+        diff = DeepDiff(
+            expected_shape,
+            response,
+            exclude_regex_paths=r".+\['due'\]\['millis'\]$",
+            ignore_order=True
+        )
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
 
 
