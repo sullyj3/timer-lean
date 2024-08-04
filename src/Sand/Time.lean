@@ -8,6 +8,8 @@ structure Moment where
   millis : Nat
   deriving Repr, ToJson, FromJson, BEq
 
+def Moment.now : IO Moment := Moment.mk <$> IO.monoMsNow
+
 structure Duration where
   millis : Nat
   deriving Repr, ToJson, FromJson, BEq

@@ -179,7 +179,7 @@ def handleCmd (server : Socket) (cmd : Command) : IO Unit := do
     | .timerNotFound => timerNotFound timerId
   | Command.list => do
     let .ok timers := resp
-    let now ← Moment.mk <$> IO.monoMsNow
+    let now ← Moment.now
     IO.println <| showTimers timers.data now
   | Command.pauseTimer which => match resp with
     | .ok =>

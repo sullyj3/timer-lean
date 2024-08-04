@@ -63,6 +63,6 @@ def SandDaemon.main (_args : List String) : IO α := do
   forever do
     let (client, _clientAddr) ← sock.accept
     let _tsk ← IO.asTask (prio := .dedicated) <| do
-      let clientConnectedTime ← Moment.mk <$> IO.monoMsNow
+      let clientConnectedTime ← Moment.now
       let env := {state, client, clientConnectedTime, soundPath?}
       handleClient env

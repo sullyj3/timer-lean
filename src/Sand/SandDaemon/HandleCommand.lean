@@ -69,7 +69,7 @@ private partial def countdown (id : TimerId) (due : Moment) : CmdHandlerT IO Uni
   loop
   where
   loop := do
-    let now ← Moment.mk <$> IO.monoMsNow
+    let now ← Moment.now
     let remaining := due - now
     -- This task will be cancelled if the timer is cancelled or paused.
     -- in case of resumed, a new separate task will be spawned.
