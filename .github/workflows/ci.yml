@@ -33,7 +33,7 @@ jobs:
           echo "Testing $(.lake/build/bin/sand version)"
           python -m pip install --upgrade pip
           pip install pytest
-          pytest test_daemon.py
+          pytest test.py
 
       - name: Create release archive
         env:
