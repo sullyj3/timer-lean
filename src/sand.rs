@@ -1,9 +1,4 @@
-// This module will contain common functionality and message wire format
+pub const VERSION: &str = "Sand v0.3.0: rewrite it in Rust";
 
-pub enum Message {
-    // Define your message types here
-}
-
-// Implement serialization/deserialization for Message
-
-// Other common functionality...
+// pub enum Message {
+// }

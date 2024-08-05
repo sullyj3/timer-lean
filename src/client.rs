@@ -23,6 +23,7 @@ pub fn main(cmd: cli::CliCommand) {
             println!("Cancelling timer {}...", timer_id);
             // Implement cancel functionality
         }
-        cli::CliCommand::Daemon(_) => unreachable!(),
+        cli::CliCommand::Version => unreachable!("handled in top level main"),
+        cli::CliCommand::Daemon(_) => unreachable!("handled in top level main"),
     }
 }

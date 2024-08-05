@@ -1,6 +1,6 @@
 use crate::cli;
+use crate::sand;
 
 pub fn main(_args: cli::DaemonArgs) {
-    println!("Starting sand daemon ");
-    // Implement daemon functionality
+    println!("Starting sand daemon {}", sand::VERSION);
 }
