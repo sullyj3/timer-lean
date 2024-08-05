@@ -3,3 +3,4 @@
 /release.tar.zst
 .direnv/
 __pycache__/
+/target
