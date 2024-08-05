@@ -9,6 +9,9 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use dirs;
+use tokio;
+use tokio::runtime::Runtime;
+// use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::cli;
 use crate::sand;
@@ -63,29 +66,33 @@ pub fn main(_args: cli::DaemonArgs) -> io::Result<()> {
     let listener = unsafe { unix::net::UnixListener::from_raw_fd(fd) };
     let _state = DaemonState::default();
 
-    loop {
-        // Accept client
-        let (mut stream, _addr) = match listener.accept() {
-            Ok((stream, addr)) => (stream, addr),
-            Err(e) => {
-                eprintln!("Error: failed to accept client: {}", e);
-                continue;
-            },
-        };
+    let rt = Runtime::new()?;
+    rt.block_on(async {
+        loop {
+            // Accept client
+            let (mut stream, _addr) = match listener.accept() {
+                Ok((stream, addr)) => (stream, addr),
+                Err(e) => {
+                    eprintln!("Error: failed to accept client: {}", e);
+                    continue;
+                },
+            };
 
-        // TODO spawn a thread to handle the client
+            // TODO spawn a thread to handle the client
 
-        // For now, pretend the client sent a list command
-        let msg = "{ \"ok\": { \"timers\": [ ] } }";
-        match stream.write_all(msg.as_bytes()) {
-            Ok(_) => (),
-            Err(e) => eprintln!("Error: failed to write to client: {}", e),
+            // For now, pretend the client sent a list command
+            let msg = "{ \"ok\": { \"timers\": [ ] } }";
+            match stream.write_all(msg.as_bytes()) {
+                Ok(_) => (),
+                Err(e) => eprintln!("Error: failed to write to client: {}", e),
+            }
+
+            // Close the stream
+            match stream.shutdown(std::net::Shutdown::Both) {
+                Ok(_) => (),
+                Err(e) => eprintln!("Error: failed to shutdown stream: {}", e),
+            }
         }
+    })
 
-        // Close the stream
-        match stream.shutdown(std::net::Shutdown::Both) {
-            Ok(_) => (),
-            Err(e) => eprintln!("Error: failed to shutdown stream: {}", e),
-        }
-    }
 }
