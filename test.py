@@ -19,6 +19,7 @@ import pytest
 from deepdiff import DeepDiff
 
 SOCKET_PATH = "./test.sock"
+BINARY_PATH = "./target/debug/sand"
 
 '''
 Remove the socket file if it already exists
@@ -51,12 +52,11 @@ def daemon_socket():
 @pytest.fixture
 def daemon(daemon_socket):
 
-    daemon_command = "./.lake/build/bin/sand"
     daemon_args = ["daemon"]
     sock_fd = daemon_socket.fileno()
     try:
         daemon_proc = subprocess.Popen(
-            [daemon_command] + daemon_args,
+            [BINARY_PATH] + daemon_args,
             pass_fds=(sock_fd,),
             env={"SAND_SOCKFD": str(sock_fd)},
             stdout=subprocess.PIPE,
@@ -75,10 +75,8 @@ def daemon(daemon_socket):
         print(f"-- Daemon terminated")
 
 def run_client(sock_path, args):
-    command = "./.lake/build/bin/sand"
-
     client_proc = subprocess.Popen(
-        [command] + args,
+        [BINARY_PATH] + args,
         env={"SAND_SOCK_PATH": sock_path},
         stdout=subprocess.PIPE,
     )
@@ -224,7 +222,7 @@ Need to get this down. I think by eliminating any `import Lean`.
 Hopefully we'll be able to make the warn_threshold the fail_threshold
 '''
 def test_executable_size():
-    exe_size = os.path.getsize("./.lake/build/bin/sand")
+    exe_size = os.path.getsize(BINARY_PATH)
     warn_threshold = 15_000_000
     if exe_size > warn_threshold:
         exe_size_mb = exe_size / 1_000_000

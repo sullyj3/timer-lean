@@ -21,14 +21,8 @@ jobs:
       - name: Git describe
         id: ghd
         uses: proudust/gh-describe@v2
-      - name: Run Lean Action
-        uses: leanprover/lean-action@v1
-        env:
-          GIT_DESCRIBE: ${{ steps.ghd.outputs.describe }}
-        with:
-          auto-config: "false"
-          use-mathlib-cache: "false"
-          build: "true"
+
+      # TODO cargo build
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,7 +30,7 @@ jobs:
           python-version: '3.x'
       - name: Run integration tests
         run: |
-          echo "Testing $(.lake/build/bin/sand version)"
+          echo "Testing $(target/debug/sand version)"
           python -m pip install --upgrade pip
           pip install pytest
           pip install deepdiff
