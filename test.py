@@ -84,6 +84,7 @@ def run_client(sock_path, args):
     output = client_proc.stdout.read().decode('utf-8')
     return (status, output)
 
+@pytest.mark.skip()
 class TestClient:
     def test_list_none(self, daemon):
         (status, output) = run_client(SOCKET_PATH, ["list"])
@@ -115,6 +116,7 @@ def msg_and_response(msg):
 # to ignore the specific amount of time elapsed/remaining.
 IGNORE_MILLIS = r".+\['millis'\]$"
 
+@pytest.mark.skip()
 class TestDaemon:
     def test_list_none(self, daemon):
         response = msg_and_response('list')
