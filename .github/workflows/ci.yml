@@ -23,6 +23,7 @@ jobs:
         uses: proudust/gh-describe@v2
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: Swatinem/rust-cache@v2
       - run: cargo build
       - name: Set up Python
         uses: actions/setup-python@v5
