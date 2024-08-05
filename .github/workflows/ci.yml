@@ -22,8 +22,8 @@ jobs:
         id: ghd
         uses: proudust/gh-describe@v2
 
-      # TODO cargo build
-
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo build
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -36,13 +36,15 @@ jobs:
           pip install deepdiff
           pytest test.py
 
-      - name: Create release archive
-        env:
-          GIT_DESCRIBE: ${{ steps.ghd.outputs.describe }}
-        run: ./create_release_archive.sh
-        if: startsWith(github.ref, 'refs/tags/v')
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          files: release/sand-*-x86_64-linux.tar.zst
+
+      # TODO, will need to cargo build --release
+      # - name: Create release archive
+      #   env:
+      #     GIT_DESCRIBE: ${{ steps.ghd.outputs.describe }}
+      #   run: ./create_release_archive.sh
+      #   if: startsWith(github.ref, 'refs/tags/v')
+      # - name: Release
+      #   uses: softprops/action-gh-release@v2
+      #   if: startsWith(github.ref, 'refs/tags/v')
+      #   with:
+      #     files: release/sand-*-x86_64-linux.tar.zst
