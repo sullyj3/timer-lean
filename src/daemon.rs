@@ -1,3 +1,5 @@
+pub mod state;
+
 use std::os::fd::FromRawFd;
 use std::os::fd::RawFd;
 use std::os::unix;
@@ -8,6 +10,7 @@ use dirs;
 
 use crate::cli;
 use crate::sand;
+use state::DaemonState;
 
 const SYSTEMD_SOCKFD: RawFd = 3;
 const SOUND_FILENAME: &str = "timer_sound.opus";
@@ -55,7 +58,20 @@ pub fn main(_args: cli::DaemonArgs) {
         eprintln!("Warning: failed to locate notification sound. Audio will not work");
     }
 
-    let _listener = unsafe { unix::net::UnixListener::from_raw_fd(fd) };
+    let listener = unsafe { unix::net::UnixListener::from_raw_fd(fd) };
+    let state = DaemonState::default();
 
-    unimplemented!();
+    loop {
+        // Accept client
+        let (stream, addr) = match listener.accept() {
+            Ok((stream, addr)) => (stream, addr),
+            Err(e) => {
+                eprintln!("Error: failed to accept client: {}", e);
+                continue;
+            },
+        };
+
+        // spawn a thread to handle the client
+        unimplemented!();
+    }
 }
