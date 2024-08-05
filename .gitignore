@@ -1,4 +1,4 @@
-/.lake
+/.lake/
 /release/
 /release.tar.zst
 .direnv/
