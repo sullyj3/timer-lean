@@ -1,5 +1,7 @@
 pub mod state;
 
+use std::io;
+use std::io::Write;
 use std::os::fd::FromRawFd;
 use std::os::fd::RawFd;
 use std::os::unix;
@@ -39,7 +41,7 @@ fn env_fd() -> Option<u32> {
     Some(fd)
 }
 
-pub fn main(_args: cli::DaemonArgs) {
+pub fn main(_args: cli::DaemonArgs) -> io::Result<()> {
     println!("Starting sand daemon {}", sand::VERSION);
 
     let fd: RawFd = match env_fd() {
@@ -59,11 +61,11 @@ pub fn main(_args: cli::DaemonArgs) {
     }
 
     let listener = unsafe { unix::net::UnixListener::from_raw_fd(fd) };
-    let state = DaemonState::default();
+    let _state = DaemonState::default();
 
     loop {
         // Accept client
-        let (stream, addr) = match listener.accept() {
+        let (mut stream, _addr) = match listener.accept() {
             Ok((stream, addr)) => (stream, addr),
             Err(e) => {
                 eprintln!("Error: failed to accept client: {}", e);
@@ -71,7 +73,19 @@ pub fn main(_args: cli::DaemonArgs) {
             },
         };
 
-        // spawn a thread to handle the client
-        unimplemented!();
+        // TODO spawn a thread to handle the client
+
+        // For now, send a message to the client
+        let msg = "Hello, client!";
+        match stream.write_all(msg.as_bytes()) {
+            Ok(_) => (),
+            Err(e) => eprintln!("Error: failed to write to client: {}", e),
+        }
+
+        // Close the stream
+        match stream.shutdown(std::net::Shutdown::Both) {
+            Ok(_) => (),
+            Err(e) => eprintln!("Error: failed to shutdown stream: {}", e),
+        }
     }
 }
