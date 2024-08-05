@@ -118,6 +118,19 @@ def msg_and_response(msg):
 IGNORE_MILLIS = r".+\['millis'\]$"
 
 class TestDaemon:
+    def test_list_none(self, daemon):
+        response = msg_and_response('list')
+
+        expected_shape = { 'ok': { 'timers': [ ] } }
+        
+        diff = DeepDiff(
+            expected_shape,
+            response,
+            exclude_regex_paths=IGNORE_MILLIS,
+            ignore_order=True
+        )
+        assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
+
     def test_add(self, daemon):
         msg = {'addTimer': {'duration': {'millis': 60000}}} 
         expected = {'ok': {'createdId': {'id': 1}}}
