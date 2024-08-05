@@ -75,8 +75,8 @@ pub fn main(_args: cli::DaemonArgs) -> io::Result<()> {
 
         // TODO spawn a thread to handle the client
 
-        // For now, send a message to the client
-        let msg = "Hello, client!";
+        // For now, pretend the client sent a list command
+        let msg = "{ \"ok\": { \"timers\": [ ] } }";
         match stream.write_all(msg.as_bytes()) {
             Ok(_) => (),
             Err(e) => eprintln!("Error: failed to write to client: {}", e),

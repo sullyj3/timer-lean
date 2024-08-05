@@ -116,7 +116,6 @@ def msg_and_response(msg):
 # to ignore the specific amount of time elapsed/remaining.
 IGNORE_MILLIS = r".+\['millis'\]$"
 
-@pytest.mark.skip()
 class TestDaemon:
     def test_list_none(self, daemon):
         response = msg_and_response('list')
@@ -131,6 +130,7 @@ class TestDaemon:
         )
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
 
+    @pytest.mark.skip()
     def test_add(self, daemon):
         msg = {'addTimer': {'duration': {'millis': 60000}}} 
         expected = {'ok': {'createdId': {'id': 1}}}
@@ -139,6 +139,7 @@ class TestDaemon:
         diff = DeepDiff(expected, response, ignore_order=True)
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
 
+    @pytest.mark.skip()
     def test_list(self, daemon):
         run_client(SOCKET_PATH, ["10m"])
         run_client(SOCKET_PATH, ["20m"])
@@ -162,6 +163,7 @@ class TestDaemon:
         )
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
 
+    @pytest.mark.skip()
     def test_pause_resume(self, daemon):
         run_client(SOCKET_PATH, ["10m"])
         run_client(SOCKET_PATH, ["pause", "1"])
@@ -206,6 +208,7 @@ class TestDaemon:
         )
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
 
+    @pytest.mark.skip()
     def test_cancel(self, daemon):
         run_client(SOCKET_PATH, ["10m"])
         run_client(SOCKET_PATH, ["cancel", "1"])
