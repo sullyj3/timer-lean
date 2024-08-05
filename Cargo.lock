@@ -74,6 +74,7 @@ checksum = "4042078ea593edffc452eef14e99fdb2b120caa4ad9618bcdeabc4a023b98740"
 dependencies = [
  "futures",
  "pin-project",
+ "tokio",
 ]
 
 [[package]]

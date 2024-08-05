@@ -3,9 +3,9 @@ use std::io;
 use clap::Parser;
 use cli::CliCommand;
 
+mod cli;
 mod client;
 mod daemon;
-mod cli;
 mod sand;
 
 fn main() -> io::Result<()> {
@@ -13,14 +13,13 @@ fn main() -> io::Result<()> {
 
     match cli.command {
         CliCommand::Version => {
-           println!("{}", sand::VERSION); 
-           Ok(())
-        },
+            println!("{}", sand::VERSION);
+            Ok(())
+        }
         CliCommand::Daemon(args) => daemon::main(args),
         _ => {
             client::main(cli.command);
             Ok(())
-        },
+        }
     }
-    
 }

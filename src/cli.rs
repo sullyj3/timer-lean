@@ -1,11 +1,14 @@
-use clap::{Args, Subcommand, Parser};
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Args)]
-pub struct DaemonArgs {
-}
+pub struct DaemonArgs {}
 
 #[derive(Parser)]
-#[clap(name = "sand", about = "Command line countdown timers that don't take up a terminal.", version)]
+#[clap(
+    name = "sand",
+    about = "Command line countdown timers that don't take up a terminal.",
+    version
+)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: CliCommand,
@@ -22,19 +25,19 @@ pub enum CliCommand {
     #[clap(alias = "list")]
     Ls,
     /// Pause the timer with the given ID
-    Pause { 
-        timer_id: String 
+    Pause {
+        timer_id: String,
     },
     /// Resume the timer with the given ID
-    Resume { 
-        timer_id: String 
+    Resume {
+        timer_id: String,
     },
     /// Cancel the timer with the given ID
-    Cancel { 
-        timer_id: String 
+    Cancel {
+        timer_id: String,
     },
-    Version, 
-    
+    Version,
+
     /// Launch the daemon
     Daemon(DaemonArgs),
 }
