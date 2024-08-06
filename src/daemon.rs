@@ -9,6 +9,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use dirs;
+use serde_json::Error;
 use tokio;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
@@ -18,6 +19,8 @@ use tokio::runtime::Runtime;
 use tokio::io::AsyncWriteExt;
 use async_scoped;
 use async_scoped::TokioScope;
+use tokio_stream::wrappers::LinesStream;
+use tokio_stream::StreamExt;
 
 use crate::cli;
 use crate::sand;
@@ -57,34 +60,36 @@ async fn handle_client(mut stream: UnixStream) {
 
     let (read_half, mut write_half) = stream.split();
 
-    let mut br = BufReader::new(read_half);
+    let br = BufReader::new(read_half);
 
-    let mut buf = String::with_capacity(128);
-    match br.read_line(&mut buf).await {
-        Ok(n) => eprintln!("DEBUG: read line of {n} bytes"),
-        Err(e) => {
-            eprintln!("DEBUG: error reading line from client: {e}");
-            return;
-        },
+    let mut lines = LinesStream::new(br.lines());
+
+    while let Some(rline) = lines.next().await {
+        let line: String = match rline {
+            Ok(line) => line,
+            Err(e) => {
+                eprintln!("Error reading line from client: {e}");
+                continue;
+            },
+        };
+        let line: &str = line.trim();
+        let rcmd: Result<Command, Error> = serde_json::from_str(&line);
+
+        let reply = match rcmd {
+            Ok(cmd) => match cmd {
+                Command::List => {
+                    "{ \"ok\": { \"timers\": [ ] } }"
+                }
+            }
+            Err(e) => {
+                eprintln!("Error: failed to parse client message as Command: {e}");
+                "{ \"error\": \"unknown command\" }"
+            }
+        };
+
+        write_half.write_all(reply.as_bytes()).await.unwrap();
     }
 
-
-    eprintln!("DEBUG: message: {buf}");
-    let cmd: Command = match serde_json::from_str(&buf.trim()) {
-        Ok(cmd) => cmd,
-        Err(e) => {
-            eprintln!("Error: failed to parse client message as Command: {e}");
-            return;
-        }
-    };
-
-    let reply = match cmd {
-        Command::List => {
-            "{ \"ok\": { \"timers\": [ ] } }"
-        }
-    };
-
-    write_half.write_all(reply.as_bytes()).await.unwrap();
 
     // Close the stream
     stream.shutdown().await.expect("failed to shutdown socket");
@@ -97,7 +102,6 @@ async fn handle_client(mut stream: UnixStream) {
 async fn accept_loop(listener: UnixListener) {
     eprintln!("starting accept loop");
     loop {
-        eprintln!("foo");
         match listener.accept().await {
             Ok((stream, _addr)) => {
                 eprintln!("got client");
