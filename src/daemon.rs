@@ -1,4 +1,5 @@
-pub mod state;
+mod state;
+mod handle_client;
 
 use std::str;
 use std::io;
@@ -9,23 +10,16 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use dirs;
-use serde_json::Error;
 use tokio;
-use tokio::io::AsyncBufReadExt;
-use tokio::io::BufReader;
 use tokio::net::UnixListener;
-use tokio::net::UnixStream;
 use tokio::runtime::Runtime;
-use tokio::io::AsyncWriteExt;
 use async_scoped;
 use async_scoped::TokioScope;
-use tokio_stream::wrappers::LinesStream;
-use tokio_stream::StreamExt;
 
 use crate::cli;
 use crate::sand;
-use crate::sand::message::Command;
 use state::DaemonState;
+use handle_client::handle_client;
 
 const SYSTEMD_SOCKFD: RawFd = 3;
 const SOUND_FILENAME: &str = "timer_sound.opus";
@@ -54,48 +48,6 @@ fn env_fd() -> Option<u32> {
         .into();
     Some(fd)
 }
-
-async fn handle_client(mut stream: UnixStream) {
-    eprintln!("DEBUG: handling client.");
-
-    let (read_half, mut write_half) = stream.split();
-
-    let br = BufReader::new(read_half);
-
-    let mut lines = LinesStream::new(br.lines());
-
-    while let Some(rline) = lines.next().await {
-        let line: String = match rline {
-            Ok(line) => line,
-            Err(e) => {
-                eprintln!("Error reading line from client: {e}");
-                continue;
-            },
-        };
-        let line: &str = line.trim();
-        let rcmd: Result<Command, Error> = serde_json::from_str(&line);
-
-        let reply = match rcmd {
-            Ok(cmd) => match cmd {
-                Command::List => {
-                    "{ \"ok\": { \"timers\": [ ] } }"
-                }
-            }
-            Err(e) => {
-                eprintln!("Error: failed to parse client message as Command: {e}");
-                "{ \"error\": \"unknown command\" }"
-            }
-        };
-
-        write_half.write_all(reply.as_bytes()).await.unwrap();
-    }
-
-    eprintln!("Client disconnected");
-}
-
-// enum HandleClientError {
-//     Error,
-// }
 
 async fn accept_loop(listener: UnixListener) {
     eprintln!("starting accept loop");
