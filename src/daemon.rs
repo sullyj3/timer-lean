@@ -90,9 +90,7 @@ async fn handle_client(mut stream: UnixStream) {
         write_half.write_all(reply.as_bytes()).await.unwrap();
     }
 
-
-    // Close the stream
-    stream.shutdown().await.expect("failed to shutdown socket");
+    eprintln!("Client disconnected");
 }
 
 // enum HandleClientError {
