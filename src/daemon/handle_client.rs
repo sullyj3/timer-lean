@@ -1,4 +1,6 @@
 
+use std::time::Duration;
+
 use serde_json::Error;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
@@ -6,22 +8,28 @@ use tokio::net::UnixStream;
 use tokio::io::AsyncWriteExt;
 use tokio_stream::wrappers::LinesStream;
 use tokio_stream::StreamExt;
-use crate::sand::message::{Command, ListResponse};
+use crate::sand::message::AddTimerResponse;
+use crate::sand::message::ListResponse;
+use crate::sand::message::{Command, Response};
 
 use super::state::DaemonState;
 
 fn list(state: &DaemonState) -> ListResponse {
-    ListResponse::Ok{timers: state.get_timerinfo_for_client()}
+    ListResponse::ok(state.get_timerinfo_for_client())
 }
 
-fn handle_command(cmd: Command, state: &DaemonState) -> String {
+fn add_timer(state: &DaemonState, duration: u64) -> AddTimerResponse {
+    let duration = Duration::from_millis(duration);
+    AddTimerResponse::ok(state.add_timer(duration))
+}
+
+fn handle_command(cmd: Command, state: &DaemonState) -> Response {
     match cmd {
-        Command::List => {
-            let response = list(state);
-            serde_json::to_string(&response).unwrap()
-        }
+        Command::List => list(state).into(),
+        Command::AddTimer { duration } => add_timer(state, duration).into()
     }
 }
+
 
 pub async fn handle_client(mut stream: UnixStream, state: DaemonState) {
     eprintln!("DEBUG: handling client.");
@@ -43,15 +51,16 @@ pub async fn handle_client(mut stream: UnixStream, state: DaemonState) {
         let line: &str = line.trim();
         let rcmd: Result<Command, Error> = serde_json::from_str(&line);
 
-        let reply = match rcmd {
-            Ok(cmd) => &handle_command(cmd, &state),
+        let resp: Response = match rcmd {
+            Ok(cmd) => handle_command(cmd, &state),
             Err(e) => {
-                eprintln!("Error: failed to parse client message as Command: {e}");
-                "{ \"error\": \"unknown command\" }"
+                let err_msg: String = format!("Error: failed to parse client message as Command: {e}"); 
+                eprintln!("{err_msg}");
+                Response::Error(err_msg)
             }
         };
-
-        write_half.write_all(reply.as_bytes()).await.unwrap();
+        let resp_str: String = serde_json::to_string(&resp).unwrap();
+        write_half.write_all(resp_str.as_bytes()).await.unwrap();
     }
 
     eprintln!("Client disconnected");

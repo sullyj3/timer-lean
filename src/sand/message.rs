@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
+use derive_more::From;
 
-use crate::sand::timer::TimerInfoForClient;
+use crate::sand::timer::*;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Command {
     List,
+    AddTimer { duration: u64 },
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -16,8 +18,29 @@ pub enum ListResponse {
 
 impl ListResponse {
     pub fn ok(timers: Vec<TimerInfoForClient>) -> Self {
-        ListResponse::Ok { timers }
+        Self::Ok { timers }
     }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AddTimerResponse {
+    Ok { id: TimerId },
+}
+impl AddTimerResponse {
+    pub fn ok(id: TimerId) -> AddTimerResponse {
+        Self::Ok { id }
+    }
+}
+
+#[derive(Serialize, Deserialize, From)]
+#[serde(untagged)]
+pub enum Response {
+    List(ListResponse),
+    AddTimer(AddTimerResponse),
+
+    #[from(ignore)]
+    Error(String),
 }
 
 #[cfg(test)]
