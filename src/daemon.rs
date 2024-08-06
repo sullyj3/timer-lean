@@ -67,9 +67,9 @@ async fn accept_loop(listener: UnixListener, state: &DaemonCtx) {
     }
 }
 
-async fn daemon(fd: RawFd) -> io::Result<()> {
+async fn daemon(fd: RawFd, o_sound_path: Option<PathBuf>) -> io::Result<()> {
     eprintln!("daemon started.");
-    let state = DaemonCtx::default();
+    let state = DaemonCtx::new(o_sound_path);
     let std_listener: unix::net::UnixListener = unsafe { unix::net::UnixListener::from_raw_fd(fd) };
     std_listener.set_nonblocking(true)?;
     let listener: UnixListener = UnixListener::from_std(std_listener)?;
@@ -102,5 +102,5 @@ pub fn main(_args: cli::DaemonArgs) -> io::Result<()> {
     }
 
     let rt = Runtime::new()?;
-    rt.block_on(daemon(fd))
+    rt.block_on(daemon(fd, o_sound_path))
 }
