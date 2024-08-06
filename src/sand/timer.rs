@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct TimerId(u64);
@@ -16,3 +18,12 @@ impl TimerId {
 
 #[derive(Debug)]
 pub struct Timer;
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct TimerInfoForClient;
+
+impl TimerInfoForClient {
+    pub fn new(id: TimerId, timer: &Timer) -> Self {
+        Self
+    }
+}

@@ -49,13 +49,15 @@ fn env_fd() -> Option<u32> {
     Some(fd)
 }
 
-async fn accept_loop(listener: UnixListener) {
+async fn accept_loop(listener: UnixListener, state: &DaemonState) {
     eprintln!("starting accept loop");
     loop {
         match listener.accept().await {
             Ok((stream, _addr)) => {
                 eprintln!("got client");
-                let _jh = tokio::spawn(handle_client(stream));
+                
+                // Todo can we get rid of this clone? maybe if we use scoped threads?
+                let _jh = tokio::spawn(handle_client(stream, state.clone()));
             },
             Err(e) => {
                 eprintln!("Error: failed to accept client: {}", e);
@@ -67,13 +69,13 @@ async fn accept_loop(listener: UnixListener) {
 
 async fn daemon(fd: RawFd) -> io::Result<()> {
     eprintln!("daemon started.");
-    let _state = DaemonState::default();
+    let state = DaemonState::default();
     let std_listener: unix::net::UnixListener = unsafe { unix::net::UnixListener::from_raw_fd(fd) };
     std_listener.set_nonblocking(true)?;
     let listener: UnixListener = UnixListener::from_std(std_listener)?;
 
     TokioScope::scope_and_block(|scope | {
-        scope.spawn(accept_loop(listener));
+        scope.spawn(accept_loop(listener, &state));
     });
 
     Ok(())

@@ -8,16 +8,22 @@ use tokio_stream::wrappers::LinesStream;
 use tokio_stream::StreamExt;
 use crate::sand::message::{Command, ListResponse};
 
-fn handle_command(cmd: Command) -> String {
+use super::state::DaemonState;
+
+fn list(state: &DaemonState) -> ListResponse {
+    ListResponse::Ok{timers: state.get_timerinfo_for_client()}
+}
+
+fn handle_command(cmd: Command, state: &DaemonState) -> String {
     match cmd {
         Command::List => {
-            let response = ListResponse::ok(vec![]);
+            let response = list(state);
             serde_json::to_string(&response).unwrap()
         }
     }
 }
 
-pub async fn handle_client(mut stream: UnixStream) {
+pub async fn handle_client(mut stream: UnixStream, state: DaemonState) {
     eprintln!("DEBUG: handling client.");
 
     let (read_half, mut write_half) = stream.split();
@@ -38,7 +44,7 @@ pub async fn handle_client(mut stream: UnixStream) {
         let rcmd: Result<Command, Error> = serde_json::from_str(&line);
 
         let reply = match rcmd {
-            Ok(cmd) => &handle_command(cmd),
+            Ok(cmd) => &handle_command(cmd, &state),
             Err(e) => {
                 eprintln!("Error: failed to parse client message as Command: {e}");
                 "{ \"error\": \"unknown command\" }"

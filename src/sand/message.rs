@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::sand::timer::TimerInfoForClient;
+
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Command {
@@ -9,11 +11,11 @@ pub enum Command {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ListResponse {
-    Ok { timers: Vec<String> },
+    Ok { timers: Vec<TimerInfoForClient> },
 }
 
 impl ListResponse {
-    pub fn ok(timers: Vec<String>) -> Self {
+    pub fn ok(timers: Vec<TimerInfoForClient>) -> Self {
         ListResponse::Ok { timers }
     }
 }

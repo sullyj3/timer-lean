@@ -4,6 +4,7 @@ use std::sync::Mutex;
 
 use crate::sand::timer::TimerId;
 use crate::sand::timer::Timer;
+use crate::sand::timer::TimerInfoForClient;
 use crate::sand::timers::Timers;
 
 #[derive(Debug, Clone)]
@@ -22,10 +23,14 @@ impl Default for DaemonState {
 }
 
 impl DaemonState {
-    fn new_timer_id(&self) -> TimerId {
+    pub fn new_timer_id(&self) -> TimerId {
         let mut curr = self.nextId.lock().unwrap();
         let id = *curr;
         *curr = curr.next();
         id
+    }
+
+    pub fn get_timerinfo_for_client(&self) -> Vec<TimerInfoForClient> {
+        self.timers.get_timerinfo_for_client()
     }
 }
