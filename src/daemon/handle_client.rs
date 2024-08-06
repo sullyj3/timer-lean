@@ -6,12 +6,13 @@ use tokio::net::UnixStream;
 use tokio::io::AsyncWriteExt;
 use tokio_stream::wrappers::LinesStream;
 use tokio_stream::StreamExt;
-use crate::sand::message::Command;
+use crate::sand::message::{Command, ListResponse};
 
 fn handle_command(cmd: Command) -> String {
     match cmd {
         Command::List => {
-            "{ \"ok\": { \"timers\": [ ] } }".to_string()
+            let response = ListResponse::ok(vec![]);
+            serde_json::to_string(&response).unwrap()
         }
     }
 }
@@ -49,7 +50,3 @@ pub async fn handle_client(mut stream: UnixStream) {
 
     eprintln!("Client disconnected");
 }
-
-// enum HandleClientError {
-//     Error,
-// }
