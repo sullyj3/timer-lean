@@ -34,7 +34,7 @@ impl DaemonState {
         self.timers.get_timerinfo_for_client()
     }
     
-    pub fn add_timer(&self, duration: std::time::Duration) -> TimerId {
+    pub fn add_timer(&self, _duration: std::time::Duration) -> TimerId {
         let id = self.new_timer_id();
         let timer = Timer; // TODO
         self.timers.add(id, timer);

@@ -23,7 +23,7 @@ pub struct Timer;
 pub struct TimerInfoForClient;
 
 impl TimerInfoForClient {
-    pub fn new(id: TimerId, timer: &Timer) -> Self {
+    pub fn new(_id: TimerId, _timer: &Timer) -> Self {
         Self
     }
 }

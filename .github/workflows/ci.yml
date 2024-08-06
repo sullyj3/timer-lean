@@ -24,14 +24,16 @@ jobs:
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build
+      - run: cargo build --release
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
       - name: Run integration tests
+        env:
+          SAND_TEST_TARGET: release
         run: |
-          echo "Testing $(target/debug/sand version)"
+          echo "Testing $(target/release/sand version)"
           python -m pip install --upgrade pip
           pip install pytest
           pip install deepdiff

@@ -19,7 +19,15 @@ import pytest
 from deepdiff import DeepDiff
 
 SOCKET_PATH = "./test.sock"
-BINARY_PATH = "./target/debug/sand"
+
+# determine which target to test from env
+target = os.environ.get("SAND_TEST_TARGET", "debug")
+if target == "release":
+    BINARY_PATH = "./target/release/sand"
+else if target == "debug":
+    BINARY_PATH = "./target/debug/sand"
+else:
+    raise ValueError(f"Unknown target: {target}")
 
 def log(s):
     t = time.strftime("%H:%M:%S")
