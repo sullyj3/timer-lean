@@ -1,5 +1,6 @@
 
 use std::time::Duration;
+use std::time::Instant;
 
 use serde_json::Error;
 use tokio::io::AsyncBufReadExt;
@@ -9,27 +10,57 @@ use tokio::io::AsyncWriteExt;
 use tokio_stream::wrappers::LinesStream;
 use tokio_stream::StreamExt;
 use crate::sand::message::AddTimerResponse;
+use crate::sand::message::CancelTimerResponse;
 use crate::sand::message::ListResponse;
+use crate::sand::message::PauseTimerResponse;
+use crate::sand::message::ResumeTimerResponse;
 use crate::sand::message::{Command, Response};
 
 use super::state::DaemonState;
 
-fn list(state: &DaemonState) -> ListResponse {
-    ListResponse::ok(state.get_timerinfo_for_client())
+struct CmdHandlerCtx {
+    now: Instant,
+    state: DaemonState,
 }
 
-fn add_timer(state: &DaemonState, duration: u64) -> AddTimerResponse {
-    let duration = Duration::from_millis(duration);
-    AddTimerResponse::ok(state.add_timer(duration))
+impl CmdHandlerCtx {
+    fn new(state: DaemonState) -> Self {
+        let now = Instant::now();
+        Self { now, state }
+    }
+
+    fn list(&self) -> ListResponse {
+        ListResponse::ok(self.state.get_timerinfo_for_client())
+    }
+
+    fn add_timer(&self, duration: u64) -> AddTimerResponse {
+        let duration = Duration::from_millis(duration);
+        let _now = self.now;
+        AddTimerResponse::ok(self.state.add_timer(duration))
+    }
+    
+    fn pause_timer(&self, _id: crate::sand::timer::TimerId) -> PauseTimerResponse {
+        todo!()
+    }
+    
+    fn resume_timer(&self, _id: crate::sand::timer::TimerId) -> ResumeTimerResponse {
+        todo!()
+    }
+    
+    fn cancel_timer(&self, _id: crate::sand::timer::TimerId) -> CancelTimerResponse {
+        todo!()
+    }
 }
+
 
 fn handle_command(cmd: Command, state: &DaemonState) -> Response {
+    let ctx = CmdHandlerCtx::new(state.clone());
     match cmd {
-        Command::List => list(state).into(),
-        Command::AddTimer { duration } => add_timer(state, duration).into(),
-        Command::PauseTimer(_) => todo!(),
-        Command::ResumeTimer(_) => todo!(),
-        Command::CancelTimer(_) => todo!(),
+        Command::List => ctx.list().into(),
+        Command::AddTimer { duration } => ctx.add_timer(duration).into(),
+        Command::PauseTimer(id) => ctx.pause_timer(id).into(),
+        Command::ResumeTimer(id) => ctx.resume_timer(id).into(),
+        Command::CancelTimer(id) => ctx.cancel_timer(id).into(),
     }
 }
 
