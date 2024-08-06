@@ -16,15 +16,15 @@ use crate::sand::message::PauseTimerResponse;
 use crate::sand::message::ResumeTimerResponse;
 use crate::sand::message::{Command, Response};
 
-use super::state::DaemonState;
+use super::state::DaemonCtx;
 
 struct CmdHandlerCtx {
     now: Instant,
-    state: DaemonState,
+    state: DaemonCtx,
 }
 
 impl CmdHandlerCtx {
-    fn new(state: DaemonState) -> Self {
+    fn new(state: DaemonCtx) -> Self {
         let now = Instant::now();
         Self { now, state }
     }
@@ -53,7 +53,7 @@ impl CmdHandlerCtx {
 }
 
 
-fn handle_command(cmd: Command, state: &DaemonState) -> Response {
+fn handle_command(cmd: Command, state: &DaemonCtx) -> Response {
     let ctx = CmdHandlerCtx::new(state.clone());
     match cmd {
         Command::List => ctx.list().into(),
@@ -65,7 +65,7 @@ fn handle_command(cmd: Command, state: &DaemonState) -> Response {
 }
 
 
-pub async fn handle_client(mut stream: UnixStream, state: DaemonState) {
+pub async fn handle_client(mut stream: UnixStream, state: DaemonCtx) {
     eprintln!("DEBUG: handling client.");
 
     let (read_half, mut write_half) = stream.split();

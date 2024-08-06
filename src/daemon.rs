@@ -18,7 +18,7 @@ use async_scoped::TokioScope;
 
 use crate::cli;
 use crate::sand;
-use state::DaemonState;
+use state::DaemonCtx;
 use handle_client::handle_client;
 
 const SYSTEMD_SOCKFD: RawFd = 3;
@@ -49,7 +49,7 @@ fn env_fd() -> Option<u32> {
     Some(fd)
 }
 
-async fn accept_loop(listener: UnixListener, state: &DaemonState) {
+async fn accept_loop(listener: UnixListener, state: &DaemonCtx) {
     eprintln!("starting accept loop");
     loop {
         match listener.accept().await {
@@ -69,7 +69,7 @@ async fn accept_loop(listener: UnixListener, state: &DaemonState) {
 
 async fn daemon(fd: RawFd) -> io::Result<()> {
     eprintln!("daemon started.");
-    let state = DaemonState::default();
+    let state = DaemonCtx::default();
     let std_listener: unix::net::UnixListener = unsafe { unix::net::UnixListener::from_raw_fd(fd) };
     std_listener.set_nonblocking(true)?;
     let listener: UnixListener = UnixListener::from_std(std_listener)?;

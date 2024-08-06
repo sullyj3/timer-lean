@@ -8,12 +8,12 @@ use crate::sand::timer::TimerInfoForClient;
 use crate::sand::timers::Timers;
 
 #[derive(Debug, Clone)]
-pub struct DaemonState {
+pub struct DaemonCtx {
     next_id: Arc<Mutex<TimerId>>,
     timers: Timers,
 }
 
-impl Default for DaemonState {
+impl Default for DaemonCtx {
     fn default() -> Self {
         Self {
             timers: Default::default(),
@@ -22,7 +22,7 @@ impl Default for DaemonState {
     }
 }
 
-impl DaemonState {
+impl DaemonCtx {
     pub fn new_timer_id(&self) -> TimerId {
         let mut curr = self.next_id.lock().unwrap();
         let id = *curr;
