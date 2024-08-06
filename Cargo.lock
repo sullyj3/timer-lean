@@ -499,6 +499,7 @@ dependencies = [
  "async-scoped",
  "clap",
  "dirs",
+ "serde",
  "serde_json",
  "tokio",
 ]
