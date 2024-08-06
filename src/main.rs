@@ -1,9 +1,9 @@
 use std::io;
 
 use clap::Parser;
-use cli::CliCommand;
+use sand::cli::CliCommand;
+use sand::cli;
 
-mod cli;
 mod client;
 mod daemon;
 mod sand;
