@@ -241,12 +241,12 @@ Hopefully we'll be able to make the warn_threshold the fail_threshold
 '''
 def test_executable_size():
     exe_size = os.path.getsize(BINARY_PATH)
-    warn_threshold = 15_000_000
+    warn_threshold = 5_000_000
     if exe_size > warn_threshold:
         exe_size_mb = exe_size / 1_000_000
         warnings.warn(f"Sand executable size is {exe_size_mb:.2f}MB")
     
-    fail_threshold = 100_000_000
+    fail_threshold = 10_000_000
     assert exe_size < fail_threshold, f"Sand executable size is {exe_size_mb:.2f}MB"
 
 if __name__ == "__main__":
