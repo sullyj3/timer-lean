@@ -26,7 +26,10 @@ fn add_timer(state: &DaemonState, duration: u64) -> AddTimerResponse {
 fn handle_command(cmd: Command, state: &DaemonState) -> Response {
     match cmd {
         Command::List => list(state).into(),
-        Command::AddTimer { duration } => add_timer(state, duration).into()
+        Command::AddTimer { duration } => add_timer(state, duration).into(),
+        Command::PauseTimer(_) => todo!(),
+        Command::ResumeTimer(_) => todo!(),
+        Command::CancelTimer(_) => todo!(),
     }
 }
 

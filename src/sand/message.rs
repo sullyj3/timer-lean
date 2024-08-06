@@ -8,6 +8,9 @@ use crate::sand::timer::*;
 pub enum Command {
     List,
     AddTimer { duration: u64 },
+    PauseTimer(TimerId),
+    ResumeTimer(TimerId),
+    CancelTimer(TimerId),
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -15,7 +18,6 @@ pub enum Command {
 pub enum ListResponse {
     Ok { timers: Vec<TimerInfoForClient> },
 }
-
 impl ListResponse {
     pub fn ok(timers: Vec<TimerInfoForClient>) -> Self {
         Self::Ok { timers }
@@ -33,11 +35,37 @@ impl AddTimerResponse {
     }
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CancelTimerResponse {
+    Ok,
+    TimerNotFound,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PauseTimerResponse {
+    Ok,
+    TimerNotFound,
+    AlreadyPaused,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ResumeTimerResponse {
+    Ok,
+    TimerNotFound,
+    AlreadyRunning,
+}
+
 #[derive(Serialize, Deserialize, From)]
 #[serde(untagged)]
 pub enum Response {
     List(ListResponse),
     AddTimer(AddTimerResponse),
+    CancelTimer(CancelTimerResponse),
+    PauseTimer(PauseTimerResponse),
+    ResumeTimer(ResumeTimerResponse),
 
     #[from(ignore)]
     Error(String),
