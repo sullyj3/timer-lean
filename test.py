@@ -21,6 +21,10 @@ from deepdiff import DeepDiff
 SOCKET_PATH = "./test.sock"
 BINARY_PATH = "./target/debug/sand"
 
+def log(s):
+    t = time.strftime("%H:%M:%S")
+    print(f"Tests [{t}] {s}")
+
 '''
 Remove the socket file if it already exists
 '''
@@ -43,10 +47,10 @@ def daemon_socket():
             flags |= fcntl.FD_CLOEXEC
             fcntl.fcntl(sock.fileno(), fcntl.F_SETFD, flags)
 
-            print(f"-- Socket created at {SOCKET_PATH} on fd {sock.fileno()}")
+            log(f"Socket created at {SOCKET_PATH} on fd {sock.fileno()}")
             yield sock
     finally:
-        print(f"-- Removing socket file {SOCKET_PATH}")
+        log(f"Removing socket file {SOCKET_PATH}")
         ensure_deleted(SOCKET_PATH)
 
 @pytest.fixture
@@ -55,24 +59,24 @@ def daemon(daemon_socket):
     daemon_args = ["daemon"]
     sock_fd = daemon_socket.fileno()
     try:
-        daemon_proc = subprocess.Popen(
-            [BINARY_PATH] + daemon_args,
-            pass_fds=(sock_fd,),
-            env={"SAND_SOCKFD": str(sock_fd)},
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        with open("daemon_stderr.log", "w") as daemon_stderr:
+            daemon_proc = subprocess.Popen(
+                [BINARY_PATH] + daemon_args,
+                pass_fds=(sock_fd,),
+                env={"SAND_SOCKFD": str(sock_fd)},
+                stderr=daemon_stderr,
+            )
 
-        print(f"-- Daemon started with PID {daemon_proc.pid}")
-        # Close the socket in the parent process
-        daemon_socket.close()
-        yield daemon_proc
+            log(f"Daemon started with PID {daemon_proc.pid}")
+            # Close the socket in the parent process
+            daemon_socket.close()
+            yield daemon_proc
     finally:
-        print(f"-- Terminating daemon with PID {daemon_proc.pid}")
+        log(f"Terminating daemon with PID {daemon_proc.pid}")
         daemon_proc.terminate()
-        print(f"-- Waiting for daemon to terminate")
+        log(f"Waiting for daemon to terminate")
         daemon_proc.wait()
-        print(f"-- Daemon terminated")
+        log(f"Daemon terminated")
 
 def run_client(sock_path, args):
     client_proc = subprocess.Popen(
@@ -105,9 +109,9 @@ def client_socket():
         yield client_sock
 
 def msg_and_response(msg):
-    msg_bytes = bytes(json.dumps(msg), encoding='utf-8')
+    msg_bytes = bytes(json.dumps(msg) + "\n", encoding='utf-8')
     with client_socket() as sock:
-        sock.send(msg_bytes)
+        sock.sendall(msg_bytes)
         resp_bytes = sock.recv(1024)
     response = json.loads(resp_bytes.decode('utf-8'))
     return response
@@ -118,6 +122,7 @@ IGNORE_MILLIS = r".+\['millis'\]$"
 
 class TestDaemon:
     def test_list_none(self, daemon):
+
         response = msg_and_response('list')
 
         expected_shape = { 'ok': { 'timers': [ ] } }

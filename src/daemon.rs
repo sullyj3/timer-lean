@@ -1,23 +1,27 @@
 pub mod state;
 
+use std::str;
 use std::io;
-use std::io::Write;
 use std::os::fd::FromRawFd;
 use std::os::fd::RawFd;
 use std::os::unix;
-use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::path::PathBuf;
 
 use dirs;
 use tokio;
+use tokio::io::AsyncBufReadExt;
+use tokio::io::BufReader;
+use tokio::net::UnixListener;
+use tokio::net::UnixStream;
 use tokio::runtime::Runtime;
-// use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use async_scoped;
 use async_scoped::TokioScope;
 
 use crate::cli;
 use crate::sand;
+use crate::sand::message::Command;
 use state::DaemonState;
 
 const SYSTEMD_SOCKFD: RawFd = 3;
@@ -49,51 +53,88 @@ fn env_fd() -> Option<u32> {
 }
 
 async fn handle_client(mut stream: UnixStream) {
-    // For now, pretend the client sent a list command
-    let msg = "{ \"ok\": { \"timers\": [ ] } }";
-    match stream.write_all(msg.as_bytes()) {
-        Ok(_) => (),
-        Err(e) => eprintln!("Error: failed to write to client: {}", e),
+    eprintln!("DEBUG: handling client.");
+
+    let (read_half, mut write_half) = stream.split();
+
+    let mut br = BufReader::new(read_half);
+
+    let mut buf = String::with_capacity(128);
+    match br.read_line(&mut buf).await {
+        Ok(n) => eprintln!("DEBUG: read line of {n} bytes"),
+        Err(e) => {
+            eprintln!("DEBUG: error reading line from client: {e}");
+            return;
+        },
     }
 
+
+    eprintln!("DEBUG: message: {buf}");
+    let cmd: Command = match serde_json::from_str(&buf.trim()) {
+        Ok(cmd) => cmd,
+        Err(e) => {
+            eprintln!("Error: failed to parse client message as Command: {e}");
+            return;
+        }
+    };
+
+    let reply = match cmd {
+        Command::List => {
+            "{ \"ok\": { \"timers\": [ ] } }"
+        }
+    };
+
+    write_half.write_all(reply.as_bytes()).await.unwrap();
+
     // Close the stream
-    match stream.shutdown(std::net::Shutdown::Both) {
-        Ok(_) => (),
-        Err(e) => eprintln!("Error: failed to shutdown stream: {}", e),
+    stream.shutdown().await.expect("failed to shutdown socket");
+}
+
+// enum HandleClientError {
+//     Error,
+// }
+
+async fn accept_loop(listener: UnixListener) {
+    eprintln!("starting accept loop");
+    loop {
+        eprintln!("foo");
+        match listener.accept().await {
+            Ok((stream, _addr)) => {
+                eprintln!("got client");
+                let _jh = tokio::spawn(handle_client(stream));
+            },
+            Err(e) => {
+                eprintln!("Error: failed to accept client: {}", e);
+                continue;
+            }
+        };
     }
 }
 
 async fn daemon(fd: RawFd) -> io::Result<()> {
+    eprintln!("daemon started.");
     let _state = DaemonState::default();
-    let listener = unsafe { unix::net::UnixListener::from_raw_fd(fd) };
+    let std_listener: unix::net::UnixListener = unsafe { unix::net::UnixListener::from_raw_fd(fd) };
+    std_listener.set_nonblocking(true)?;
+    let listener: UnixListener = UnixListener::from_std(std_listener)?;
 
-    let ((), _outputs) = async_scoped::TokioScope::scope_and_block(|scope: &mut TokioScope<()>| {
-        loop {
-            // Accept client
-            match listener.accept() {
-                Ok((stream, _addr)) => {
-                    scope.spawn_cancellable(handle_client(stream), || ())
-                },
-                Err(e) => {
-                    eprintln!("Error: failed to accept client: {}", e);
-                    continue;
-                }
-            };
-        }
+    TokioScope::scope_and_block(|scope | {
+        scope.spawn(accept_loop(listener));
     });
+
     Ok(())
 }
 
 pub fn main(_args: cli::DaemonArgs) -> io::Result<()> {
-    println!("Starting sand daemon {}", sand::VERSION);
+    eprintln!("Starting sand daemon {}", sand::VERSION);
 
     let fd: RawFd = match env_fd() {
         None => {
-            println!("SAND_SOCKFD not found, falling back on default.");
+            eprintln!("SAND_SOCKFD not found, falling back on default.");
             SYSTEMD_SOCKFD
         }
         Some(fd) => {
-            println!("Found SAND_SOCKFD.");
+            eprintln!("Found SAND_SOCKFD.");
             fd.try_into()
                 .expect("Error: SAND_SOCKFD is too large to be a file descriptor.")
         }

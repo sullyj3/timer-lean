@@ -4,3 +4,4 @@
 .direnv/
 __pycache__/
 /target
+daemon_stderr.log
