@@ -1,25 +1,26 @@
-mod state;
 mod handle_client;
+mod state;
 
-use std::str;
 use std::io;
 use std::os::fd::FromRawFd;
 use std::os::fd::RawFd;
 use std::os::unix;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str;
 
+use async_scoped;
+use async_scoped::TokioScope;
 use dirs;
 use tokio;
 use tokio::net::UnixListener;
 use tokio::runtime::Runtime;
-use async_scoped;
-use async_scoped::TokioScope;
 
 use crate::cli;
 use crate::sand;
-use state::DaemonCtx;
+use crate::sand::audio::play_notification_sound;
 use handle_client::handle_client;
+use state::DaemonCtx;
 
 const SYSTEMD_SOCKFD: RawFd = 3;
 const SOUND_FILENAME: &str = "timer_sound.opus";
@@ -28,6 +29,7 @@ fn xdg_sand_data_dir() -> Option<PathBuf> {
     Some(dirs::data_dir()?.join("sand"))
 }
 
+// TODO BUG return None if file does not exist
 fn xdg_sound_path() -> Option<PathBuf> {
     Some(xdg_sand_data_dir()?.join(SOUND_FILENAME))
 }
@@ -55,10 +57,10 @@ async fn accept_loop(listener: UnixListener, state: &DaemonCtx) {
         match listener.accept().await {
             Ok((stream, _addr)) => {
                 eprintln!("got client");
-                
+
                 // Todo can we get rid of this clone? maybe if we use scoped threads?
                 let _jh = tokio::spawn(handle_client(stream, state.clone()));
-            },
+            }
             Err(e) => {
                 eprintln!("Error: failed to accept client: {}", e);
                 continue;
@@ -74,7 +76,7 @@ async fn daemon(fd: RawFd, o_sound_path: Option<PathBuf>) -> io::Result<()> {
     std_listener.set_nonblocking(true)?;
     let listener: UnixListener = UnixListener::from_std(std_listener)?;
 
-    TokioScope::scope_and_block(|scope | {
+    TokioScope::scope_and_block(|scope| {
         scope.spawn(accept_loop(listener, &state));
     });
 
@@ -101,6 +103,10 @@ pub fn main(_args: cli::DaemonArgs) -> io::Result<()> {
         eprintln!("Warning: failed to locate notification sound. Audio will not work");
     }
 
+    // todo
+    let sound_path: PathBuf = "/usr/share/sand/timer_sound.flac".into();
+    let sound = sand::audio::Sound::load(sound_path).unwrap();
+    play_notification_sound(&sound).unwrap();
     let rt = Runtime::new()?;
     rt.block_on(daemon(fd, o_sound_path))
 }
