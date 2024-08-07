@@ -34,7 +34,7 @@ pub mod audio {
             P: AsRef<Path> + Debug,
         {
             use std::fs::File;
-            let mut buf = Vec::new();
+            let mut buf = Vec::with_capacity(1000000);
             let mut file = File::open(path)?;
             file.read_to_end(&mut buf)?;
             Ok(Sound(Arc::from(buf)))
