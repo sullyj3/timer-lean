@@ -6,8 +6,9 @@ use std::os::unix::net::UnixStream;
 use dirs;
 use serde::Deserialize;
 
-use crate::cli;
+use crate::{cli, sand};
 use crate::sand::message::{AddTimerResponse, Command};
+use crate::sand::duration::DurationExt;
 
 fn get_sock_path() -> Option<PathBuf> {
     if let Ok(path) = std::env::var("SAND_SOCK_PATH") {
@@ -15,11 +16,6 @@ fn get_sock_path() -> Option<PathBuf> {
     } else {
         Some(dirs::runtime_dir()?.join("sand.sock"))
     }
-}
-
-fn parse_durations(strs: &[String]) -> u64 {
-    // todo 
-    2000
 }
 
 struct DaemonConnection {
@@ -69,13 +65,14 @@ pub fn main(cmd: cli::CliCommand) -> io::Result<()> {
 
     match cmd {
         cli::CliCommand::Start { duration } => {
-            let duration = parse_durations(&duration);
-            conn.send(Command::AddTimer { duration: duration })?;
+            // TODO this parsing should be moved to sand::cli and integrated with clap somehow
+            let dur = sand::duration::parse_duration_from_components(&duration)
+                .ok_or(io::Error::new(io::ErrorKind::Other, "Failed to parse duration components"))?;
+            conn.send(Command::AddTimer { duration: dur.as_millis() as u64 })?;
             let AddTimerResponse::Ok { id } = conn.recv::<AddTimerResponse>()?;
-            // TODO format duration
-            println!(
-                "Timer {id} created for {duration}."
-            );
+            
+            let dur_string = dur.format_colon_separated();
+            println!("Timer {id} created for {dur_string}.");
             Ok(())
         }
         cli::CliCommand::Ls => {
