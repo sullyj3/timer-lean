@@ -71,11 +71,11 @@ async fn accept_loop(listener: UnixListener, state: &DaemonCtx) {
 async fn daemon(fd: RawFd, o_sound_path: Option<PathBuf>) -> io::Result<()> {
     eprintln!("daemon started.");
 
+    // TODO don't hardcode
     let sound_path: PathBuf = "/usr/share/sand/timer_sound.flac".into();
     let sound = sand::audio::Sound::load(sound_path).unwrap();
-    sound.play();
 
-    let state = DaemonCtx::new(o_sound_path);
+    let state = DaemonCtx::new(Some(sound));
     let std_listener: unix::net::UnixListener = unsafe { unix::net::UnixListener::from_raw_fd(fd) };
     std_listener.set_nonblocking(true)?;
     let listener: UnixListener = UnixListener::from_std(std_listener)?;

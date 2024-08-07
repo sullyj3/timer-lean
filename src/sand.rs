@@ -19,7 +19,7 @@ pub mod audio {
 
     // thanks sinesc
     // https://github.com/RustAudio/rodio/issues/141#issuecomment-383371609
-    #[derive(Clone)]
+    #[derive(Debug, Clone)]
     pub struct Sound(Arc<[u8]>);
 
     impl AsRef<[u8]> for Sound {
