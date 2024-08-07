@@ -94,7 +94,8 @@ pub async fn handle_client(mut stream: UnixStream, state: DaemonCtx) {
                 Response::Error(err_msg)
             }
         };
-        let resp_str: String = serde_json::to_string(&resp).unwrap();
+        let mut resp_str: String = serde_json::to_string(&resp).unwrap();
+        resp_str.push('\n');
         write_half.write_all(resp_str.as_bytes()).await.unwrap();
     }
 

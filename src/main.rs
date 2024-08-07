@@ -18,8 +18,7 @@ fn main() -> io::Result<()> {
         }
         CliCommand::Daemon(args) => daemon::main(args),
         _ => {
-            client::main(cli.command);
-            Ok(())
+            client::main(cli.command)
         }
     }
 }
