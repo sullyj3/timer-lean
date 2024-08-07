@@ -15,7 +15,7 @@ use crate::sand::timers::Timers;
 #[derive(Debug, Clone)]
 pub struct DaemonCtx {
     next_id: Arc<Mutex<TimerId>>,
-    timers: Timers,
+    timers: Arc<Timers>,
     sound_path: Option<PathBuf>,
 }
 

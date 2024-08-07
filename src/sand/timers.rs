@@ -1,12 +1,10 @@
 
-use std::sync::Arc;
-
 use dashmap::{DashMap, Entry};
 
 use crate::sand::timer::*;
 
-#[derive(Default, Debug, Clone)]
-pub struct Timers(Arc<DashMap<TimerId, Timer>>);
+#[derive(Default, Debug)]
+pub struct Timers(DashMap<TimerId, Timer>);
 
 impl Timers{
     pub fn add(&self, id: TimerId, timer: Timer) {
