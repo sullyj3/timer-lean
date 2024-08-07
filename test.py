@@ -143,10 +143,9 @@ class TestDaemon:
         )
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
 
-    @pytest.mark.skip()
     def test_add(self, daemon):
-        msg = {'addTimer': {'duration': {'millis': 60000}}} 
-        expected = {'ok': {'createdId': {'id': 1}}}
+        msg = {'addtimer': {'duration': 60000}} 
+        expected = {'ok': {'id': 1}}
 
         response = msg_and_response(msg)
         diff = DeepDiff(expected, response, ignore_order=True)
@@ -239,6 +238,9 @@ class TestDaemon:
 Need to get this down. I think by eliminating any `import Lean`.
 Hopefully we'll be able to make the warn_threshold the fail_threshold
 '''
+@pytest.mark.skipif(
+    target == "debug",
+    reason="Only check executable size in release builds")
 def test_executable_size():
     exe_size = os.path.getsize(BINARY_PATH)
     warn_threshold = 5_000_000
