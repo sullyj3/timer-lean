@@ -6,6 +6,7 @@ pub mod timers;
 pub const VERSION: &str = "Sand v0.3.0: rewrite it in Rust";
 
 pub mod duration {
+    use std::num::ParseIntError;
     use std::time::Duration;
     use std::str::FromStr;
 
@@ -24,7 +25,6 @@ pub mod duration {
             format!("{:02}:{:02}:{:02}:{:03}", hours, minutes, seconds, millis)
         }
     }
-
 
     #[derive(Debug, PartialEq, Eq)]
     enum TimeUnit {
@@ -56,19 +56,37 @@ pub mod duration {
         }
     }
 
-    fn parse_duration_component(component: &str) -> Option<Duration> {
-        let split_point = component.find(|c: char| !c.is_digit(10)).unwrap_or(component.len());
-        let (count_str, unit_str) = component.split_at(split_point);
-        let count = u64::from_str(count_str).ok()?;
-        let unit = TimeUnit::parse(unit_str)?;
-        Some(unit.to_duration(count))
+    #[derive(Debug, PartialEq)]
+    pub enum ParseDurationComponentError {
+        BadCount(ParseIntError),
+        BadUnit,
     }
 
-    pub fn parse_duration_from_components(components: &[String]) -> Option<Duration> {
-        components
-            .iter()
-            .map(|c| parse_duration_component(c))
-            .sum()
+    impl std::fmt::Display for ParseDurationComponentError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                ParseDurationComponentError::BadCount(e) => write!(f, "failed to parse count: {}", e),
+                ParseDurationComponentError::BadUnit => write!(f, "invalid unit"),
+            }
+        }
+    }
+
+    impl std::error::Error for ParseDurationComponentError {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+            match self {
+                ParseDurationComponentError::BadCount(e) => Some(e),
+                ParseDurationComponentError::BadUnit => None,
+            }
+        }
+    }
+
+    pub fn parse_duration_component(component: &str) -> Result<Duration, ParseDurationComponentError> {
+        use ParseDurationComponentError::*;
+        let split_point = component.find(|c: char| !c.is_digit(10)).unwrap_or(component.len());
+        let (count_str, unit_str) = component.split_at(split_point);
+        let count = u64::from_str(count_str).map_err(|e| BadCount(e))?;
+        let unit = TimeUnit::parse(unit_str).ok_or(BadUnit)?;
+        Ok(unit.to_duration(count))
     }
 
     #[cfg(test)]
@@ -78,25 +96,26 @@ pub mod duration {
         #[test]
         fn test_parse_duration() {
             let cases = vec![
-                (vec!["1".to_string()], Some(Duration::from_secs(1))),
-                (vec!["12".to_string()], Some(Duration::from_secs(12))),
-                (vec!["500ms".to_string()], Some(Duration::from_millis(500))),
-                (vec!["5s".to_string()], Some(Duration::from_secs(5))),
-                (vec!["5sec".to_string()], Some(Duration::from_secs(5))),
-                (vec!["5secs".to_string()], Some(Duration::from_secs(5))),
-                (vec!["5m".to_string()], Some(Duration::from_secs(5 * 60))),
-                (vec!["5min".to_string()], Some(Duration::from_secs(5 * 60))),
-                (vec!["5mins".to_string()], Some(Duration::from_secs(5 * 60))),
-                (vec!["1m".to_string(), "30".to_string()], Some(Duration::from_secs(90))),
-                (vec!["1m".to_string(), "30s".to_string()], Some(Duration::from_secs(90))),
-                (vec!["1min".to_string(), "30s".to_string()], Some(Duration::from_secs(90))),
-                (vec!["1m".to_string(), "30sec".to_string()], Some(Duration::from_secs(90))),
-                (vec!["2h".to_string(), "15m".to_string()], Some(Duration::from_secs(2 * 3600 + 15 * 60))),
-                (vec!["2hrs".to_string(), "15mins".to_string()], Some(Duration::from_secs(2 * 3600 + 15 * 60))),
+                ("1".to_string(), Ok(Duration::from_secs(1))),
+                ("5s".to_string(), Ok(Duration::from_secs(5))),
+                ("12".to_string(), Ok(Duration::from_secs(12))),
+                ("30".to_string(), Ok(Duration::from_secs(30))),
+                ("500ms".to_string(), Ok(Duration::from_millis(500))),
+                ("30s".to_string(), Ok(Duration::from_secs(30))),
+                ("5sec".to_string(), Ok(Duration::from_secs(5))),
+                ("30sec".to_string(), Ok(Duration::from_secs(30))),
+                ("5secs".to_string(), Ok(Duration::from_secs(5))),
+                ("1m".to_string(), Ok(Duration::from_secs(60))),
+                ("5m".to_string(), Ok(Duration::from_secs(5 * 60))),
+                ("5min".to_string(), Ok(Duration::from_secs(5 * 60))),
+                ("5mins".to_string(), Ok(Duration::from_secs(5 * 60))),
+                ("15m".to_string(), Ok(Duration::from_secs(15 * 60))),
+                ("15mins".to_string(), Ok(Duration::from_secs(15 * 60))),
+                ("2h".to_string(), Ok(Duration::from_secs(2 * 3600))),
             ];
 
             for (input, expected) in cases {
-                let actual = parse_duration_from_components(&input);
+                let actual = parse_duration_component(&input);
                 assert_eq!(actual, expected, "Failed for input: {:?}", input);
             }
         }

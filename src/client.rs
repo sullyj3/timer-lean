@@ -2,11 +2,13 @@
 use std::io::{self, BufRead, BufReader, LineWriter, Write};
 use std::path::PathBuf;
 use std::os::unix::net::UnixStream;
+use std::time::Duration;
 
 use dirs;
 use serde::Deserialize;
 
-use crate::{cli, sand};
+use crate::sand::cli::StartArgs;
+use crate::cli;
 use crate::sand::message::{AddTimerResponse, Command};
 use crate::sand::duration::DurationExt;
 
@@ -64,10 +66,8 @@ pub fn main(cmd: cli::CliCommand) -> io::Result<()> {
     };
 
     match cmd {
-        cli::CliCommand::Start { duration } => {
-            // TODO this parsing should be moved to sand::cli and integrated with clap somehow
-            let dur = sand::duration::parse_duration_from_components(&duration)
-                .ok_or(io::Error::new(io::ErrorKind::Other, "Failed to parse duration components"))?;
+        cli::CliCommand::Start(StartArgs{ durations }) => {
+            let dur: Duration = durations.iter().sum();
             conn.send(Command::AddTimer { duration: dur.as_millis() as u64 })?;
             let AddTimerResponse::Ok { id } = conn.recv::<AddTimerResponse>()?;
             
