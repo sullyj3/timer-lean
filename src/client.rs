@@ -1,7 +1,6 @@
 
-use std::io::{self, BufRead, BufReader, BufWriter, LineWriter, Write};
-use std::net::TcpStream;
-use std::path::{Path, PathBuf};
+use std::io::{self, BufRead, BufReader, LineWriter, Write};
+use std::path::PathBuf;
 use std::os::unix::net::UnixStream;
 
 use dirs;

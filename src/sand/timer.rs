@@ -32,10 +32,27 @@ pub enum Timer {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct TimerInfoForClient;
+pub enum TimerStateForClient {
+    Paused,
+    Running,
+}
 
-impl TimerInfoForClient {
-    pub fn new(_id: TimerId, _timer: &Timer) -> Self {
-        Self
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct TimerInfoForClient {
+    id: TimerId,
+    state: TimerStateForClient,
+    remaining_millis: u64,
+}
+
+impl TimerInfoForClient  {
+    
+    pub fn new(id: TimerId, timer: &Timer, now: Instant) -> Self {
+        let (state, remaining_millis) = match timer {
+            Timer::Paused { remaining } =>
+                (TimerStateForClient::Paused, remaining.as_millis() as u64),
+            Timer::Running { due, .. } => 
+                (TimerStateForClient::Running, (*due - now).as_millis() as u64),
+        };
+        Self { id, state, remaining_millis }
     }
 }

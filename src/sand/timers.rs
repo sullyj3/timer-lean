@@ -1,4 +1,6 @@
 
+use std::time::Instant;
+
 use dashmap::{DashMap, Entry};
 
 use crate::sand::timer::*;
@@ -13,9 +15,10 @@ impl Timers{
         }
     }
 
-    pub fn get_timerinfo_for_client(&self) -> Vec<TimerInfoForClient> {
-        self.0.iter().map(|rm| {
-            TimerInfoForClient::new(*rm.key(), rm.value())
+    pub fn get_timerinfo_for_client(&self, now: Instant) -> Vec<TimerInfoForClient> {
+        self.0.iter().map(|ref_multi| {
+            let (id, timer) = ref_multi.pair();
+            TimerInfoForClient::new(*id, timer, now)
         }).collect()
     }
     

@@ -35,8 +35,8 @@ impl DaemonCtx {
         id
     }
 
-    pub fn get_timerinfo_for_client(&self) -> Vec<TimerInfoForClient> {
-        self.timers.get_timerinfo_for_client()
+    pub fn get_timerinfo_for_client(&self, now: Instant) -> Vec<TimerInfoForClient> {
+        self.timers.get_timerinfo_for_client(now)
     }
     
     pub fn add_timer(&self, now: Instant, duration: Duration) -> TimerId {

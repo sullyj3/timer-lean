@@ -30,7 +30,7 @@ impl CmdHandlerCtx {
     }
 
     fn list(&self) -> ListResponse {
-        ListResponse::ok(self.state.get_timerinfo_for_client())
+        ListResponse::ok(self.state.get_timerinfo_for_client(self.now))
     }
 
 

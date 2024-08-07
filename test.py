@@ -61,6 +61,9 @@ def daemon_socket():
         log(f"Removing socket file {SOCKET_PATH}")
         ensure_deleted(SOCKET_PATH)
 
+# TODO refactor daemon tests to use fake client, client tests to use fake daemon
+# they should be testable independently
+
 @pytest.fixture
 def daemon(daemon_socket):
 
@@ -127,6 +130,7 @@ def msg_and_response(msg):
 # Since the amount of time elapsed is not deterministic, for most tests we want
 # to ignore the specific amount of time elapsed/remaining.
 IGNORE_MILLIS = r".+\['millis'\]$"
+IGNORE_REMAINING_MILLIS = r".+\['remaining_millis'\]$"
 
 class TestDaemon:
     def test_list_none(self, daemon):
@@ -151,18 +155,17 @@ class TestDaemon:
         diff = DeepDiff(expected, response, ignore_order=True)
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
 
-    @pytest.mark.skip()
     def test_list(self, daemon):
-        run_client(SOCKET_PATH, ["10m"])
-        run_client(SOCKET_PATH, ["20m"])
+        msg_and_response({'addtimer': {'duration': 10 * 60 * 1000}})
+        msg_and_response({'addtimer': {'duration': 20 * 60 * 1000}})
         
         response = msg_and_response('list')
 
         expected_shape = {
             'ok': {
                 'timers': [
-                    {'id': {'id': 2}, 'state': {'running': {'due': {'millis': 0 }}}},
-                    {'id': {'id': 1}, 'state': {'running': {'due': {'millis': 0 }}}},
+                    {'id': 2, 'state': 'Running', 'remaining_millis': 0},
+                    {'id': 1, 'state': 'Running', 'remaining_millis': 0},
                 ]
             }
         }
@@ -170,7 +173,7 @@ class TestDaemon:
         diff = DeepDiff(
             expected_shape,
             response,
-            exclude_regex_paths=IGNORE_MILLIS,
+            exclude_regex_paths=IGNORE_REMAINING_MILLIS,
             ignore_order=True
         )
         assert not diff, f"Response shape mismatch:\n{pformat(diff)}"
