@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use tokio::sync::oneshot;
 use tokio::sync::Notify;
+use notify_rust::Notification;
 
 use crate::sand::timer::TimerId;
 use crate::sand::timer::Timer;
@@ -53,7 +54,14 @@ impl DaemonCtx {
             async move {
                 tokio::time::sleep(duration).await;
                 eprintln!("Timer {id} completed");
-                // TODO notification, play sound
+                Notification::new()
+                    .summary("Time's up!")
+                    .body("Your timer has elapsed")
+                    .icon("alarm")
+                    .urgency(notify_rust::Urgency::Critical)
+                    .show()
+                    .unwrap();
+                // TODO play sound
                 rx_added.notified().await;
                 timers.elapse(id)
             }
