@@ -18,7 +18,6 @@ use tokio::runtime::Runtime;
 
 use crate::cli;
 use crate::sand;
-use crate::sand::audio::play_notification_sound;
 use handle_client::handle_client;
 use state::DaemonCtx;
 
@@ -71,6 +70,11 @@ async fn accept_loop(listener: UnixListener, state: &DaemonCtx) {
 
 async fn daemon(fd: RawFd, o_sound_path: Option<PathBuf>) -> io::Result<()> {
     eprintln!("daemon started.");
+
+    let sound_path: PathBuf = "/usr/share/sand/timer_sound.flac".into();
+    let sound = sand::audio::Sound::load(sound_path).unwrap();
+    sound.play();
+
     let state = DaemonCtx::new(o_sound_path);
     let std_listener: unix::net::UnixListener = unsafe { unix::net::UnixListener::from_raw_fd(fd) };
     std_listener.set_nonblocking(true)?;
@@ -103,10 +107,6 @@ pub fn main(_args: cli::DaemonArgs) -> io::Result<()> {
         eprintln!("Warning: failed to locate notification sound. Audio will not work");
     }
 
-    // todo
-    let sound_path: PathBuf = "/usr/share/sand/timer_sound.flac".into();
-    let sound = sand::audio::Sound::load(sound_path).unwrap();
-    play_notification_sound(&sound).unwrap();
     let rt = Runtime::new()?;
     rt.block_on(daemon(fd, o_sound_path))
 }
