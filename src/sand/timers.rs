@@ -1,7 +1,7 @@
 
 use std::sync::Arc;
 
-use dashmap::DashMap;
+use dashmap::{DashMap, Entry};
 
 use crate::sand::timer::*;
 
@@ -19,5 +19,12 @@ impl Timers{
         self.0.iter().map(|rm| {
             TimerInfoForClient::new(*rm.key(), rm.value())
         }).collect()
+    }
+    
+    pub(crate) fn elapse(&self, id: TimerId) {
+        let Entry::Occupied(occ) = self.0.entry(id) else {
+            unreachable!("BUG: tried to complete nonexistent timer #{id:?}");
+        };
+        occ.remove();
     }
 }

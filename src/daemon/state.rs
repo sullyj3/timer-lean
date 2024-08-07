@@ -1,6 +1,11 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::Duration;
+use std::time::Instant;
+
+use tokio::sync::oneshot;
+use tokio::sync::Notify;
 
 use crate::sand::timer::TimerId;
 use crate::sand::timer::Timer;
@@ -34,10 +39,27 @@ impl DaemonCtx {
         self.timers.get_timerinfo_for_client()
     }
     
-    pub fn add_timer(&self, _duration: std::time::Duration) -> TimerId {
+    pub fn add_timer(&self, now: Instant, duration: Duration) -> TimerId {
         let id = self.new_timer_id();
-        let timer = Timer; // TODO
-        self.timers.add(id, timer);
+        let due = now + duration;
+        
+        // once the countdown has elapsed, it removes its associated timer from
+        // the Timers map. For short durations (eg 0), We need to synchronize to 
+        // ensure it doesn't do this til after it's been added
+        let notify_added = Arc::new(Notify::new());
+        let rx_added = notify_added.clone();
+        let timers = self.timers.clone();
+        let countdown = tokio::spawn(
+            async move {
+                tokio::time::sleep(duration).await;
+                eprintln!("Timer {id} completed");
+                // TODO notification, play sound
+                rx_added.notified().await;
+                timers.elapse(id)
+            }
+        );
+        self.timers.add(id, Timer::Running { due, countdown });
+        notify_added.notify_one();
         id
     }
 }

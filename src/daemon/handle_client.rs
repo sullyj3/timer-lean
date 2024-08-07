@@ -33,10 +33,11 @@ impl CmdHandlerCtx {
         ListResponse::ok(self.state.get_timerinfo_for_client())
     }
 
+
     fn add_timer(&self, duration: u64) -> AddTimerResponse {
         let duration = Duration::from_millis(duration);
-        let _now = self.now;
-        AddTimerResponse::ok(self.state.add_timer(duration))
+        let id = self.state.add_timer(self.now, duration);
+        AddTimerResponse::ok(id)
     }
     
     fn pause_timer(&self, _id: crate::sand::timer::TimerId) -> PauseTimerResponse {
