@@ -16,7 +16,7 @@ use crate::sand::message::PauseTimerResponse;
 use crate::sand::message::ResumeTimerResponse;
 use crate::sand::message::{Command, Response};
 
-use super::state::DaemonCtx;
+use super::ctx::DaemonCtx;
 
 struct CmdHandlerCtx {
     now: Instant,

@@ -1,5 +1,5 @@
 mod handle_client;
-mod state;
+mod ctx;
 
 use std::io;
 use std::os::fd::FromRawFd;
@@ -19,7 +19,7 @@ use tokio::runtime::Runtime;
 use crate::cli;
 use crate::sand;
 use handle_client::handle_client;
-use state::DaemonCtx;
+use ctx::DaemonCtx;
 
 const SYSTEMD_SOCKFD: RawFd = 3;
 const SOUND_FILENAME: &str = "timer_sound.opus";
